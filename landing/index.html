@@ -250,11 +250,57 @@
     .footer-links { display: flex; gap: 19px; }
     .footer-links a:hover { color: var(--text); }
 
+
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .why-card {
+      min-height: 215px;
+      padding: 25px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: linear-gradient(150deg, rgba(23, 29, 41, .96), rgba(16, 20, 29, .96));
+    }
+
+    .why-card h3 { margin: 18px 0 8px; font-size: 16px; }
+    .why-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 14px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .pricing-card {
+      display: flex;
+      flex-direction: column;
+      padding: 25px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: linear-gradient(150deg, rgba(23, 29, 41, .96), rgba(16, 20, 29, .96));
+    }
+
+    .pricing-card.featured { border-color: rgba(145, 130, 255, .65); box-shadow: 0 15px 42px rgba(80, 67, 170, .12); }
+    .pricing-label { color: var(--accent-2); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .pricing-card h3 { margin: 12px 0 7px; font-size: 17px; }
+    .pricing-amount { margin: 5px 0 0; font-size: 35px; font-weight: 850; letter-spacing: -.06em; }
+    .pricing-period { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+    .pricing-card p { color: var(--muted); font-size: 12px; line-height: 1.75; }
+    .pricing-card .button { width: 100%; margin-top: auto; }
+    .pricing-footnote { max-width: 700px; margin: 22px auto 0; color: #7f8ba1; font-size: 11px; line-height: 1.8; text-align: center; }
+
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; gap: 48px; padding-top: 72px; }
       .hero-copy { max-width: 650px; }
       .product-window { width: min(650px, 100%); margin: 0 auto; transform: none; }
       .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .pricing-grid, .why-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 600px) {
@@ -287,7 +333,9 @@
         <span>ContextVault</span>
       </a>
       <div class="nav-links">
+        <a href="#why-contextvault">Why ContextVault?</a>
         <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
         <a href="#how-it-works">How it works</a>
         <a href="#faq">FAQ</a>
         <a class="nav-cta" href="https://github.com/ahmedfayedesmail-ui/contextvault">Get Started ↗</a>
@@ -350,6 +398,31 @@
         <span class="trust-item"><i class="trust-dot"></i>Your files stay on your machine</span>
       </div>
 
+      <section class="section" id="why-contextvault">
+        <div class="section-heading">
+          <span class="section-kicker">Why ContextVault?</span>
+          <h2>Project context, without sending your index to the cloud.</h2>
+          <p>Keep retrieval close to your code, connect the tools you already use, and search indexed project context locally.</p>
+        </div>
+        <div class="why-grid">
+          <article class="why-card">
+            <span class="feature-icon">⌂</span>
+            <h3>Local-first privacy</h3>
+            <p>Project scanning, embeddings, the SQLite index, and semantic search run on your machine with local Ollama. No hosted embedding API is required for the indexing pipeline.</p>
+          </article>
+          <article class="why-card">
+            <span class="feature-icon">⌘</span>
+            <h3>Works with Claude &amp; Cursor</h3>
+            <p>Connect through MCP and let compatible clients retrieve relevant project context with ContextVault's search and indexing tools.</p>
+          </article>
+          <article class="why-card">
+            <span class="feature-icon">↗</span>
+            <h3>Fast local retrieval</h3>
+            <p>Search your local semantic index without a hosted embedding-service round trip for each query. Results are ranked from chunks already indexed on your machine.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="section" id="features">
         <div class="section-heading">
           <span class="section-kicker">A better way to keep context</span>
@@ -378,6 +451,31 @@
             <p>Project files and embeddings stay in your local ContextVault database and Ollama process. No automatic source-code upload to hosted embedding APIs.</p>
           </article>
         </div>
+      </section>
+
+      <section class="section" id="pricing">
+        <div class="section-heading">
+          <span class="section-kicker">Simple pricing</span>
+          <h2>Start free. Upgrade when you need more.</h2>
+          <p>Begin with ContextVault Free, then choose monthly or annual Pro billing through one checkout.</p>
+        </div>
+        <div class="pricing-grid">
+          <article class="pricing-card">
+            <span class="pricing-label">Get started</span>
+            <h3>Free</h3>
+            <p class="pricing-amount">$0 <span class="pricing-period">/ month</span></p>
+            <p>Explore the local-first ContextVault workflow and start building searchable project context.</p>
+            <span class="pricing-label">Free plan</span>
+          </article>
+          <article class="pricing-card featured">
+            <span class="pricing-label">More capability</span>
+            <h3>Pro</h3>
+            <p class="pricing-amount">$9 <span class="pricing-period">/ month</span></p>
+            <p>Or <strong>$79 / year</strong> with annual billing.</p>
+            <a class="button" href="https://witness-engine.lemonsqueezy.com/checkout/buy/2e74fe7c-547a-4483-b09d-5699d6a1b422" target="_blank" rel="noopener noreferrer">Upgrade to Pro ↗</a>
+          </article>
+        </div>
+        <p class="pricing-footnote">The Pro checkout lets you choose monthly or yearly billing. Subscription terms are shown before payment.</p>
       </section>
 
       <section class="section" id="how-it-works">

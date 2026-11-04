@@ -1,51 +1,67 @@
 # ContextVault
 
+![CI](https://github.com/ahmedfayedesmail-ui/contextvault/actions/workflows/ci.yml/badge.svg?branch=main)
+![License: not declared](https://img.shields.io/badge/license-not%20declared-lightgrey.svg)
+![Version](https://img.shields.io/badge/version-0.1.0-8b7cff.svg)
+
 ContextVault is a local-first developer context and memory system. It indexes a project on your machine, creates searchable embeddings with local Ollama, and lets you find relevant project code through a web interface or MCP-compatible desktop tools.
 
-## Cross-Platform Installation
+## Quick Start
 
-Choose one installer for your environment. Native installers prepare Node.js, Ollama, the nomic-embed-text model, project dependencies, and a launcher for the local dashboard.
+Choose the simplest installation path for your machine:
 
 ### Windows 10 / 11
 
 1. Download and extract the ContextVault repository ZIP.
-2. Right-click install-contextvault.ps1 and choose **Run with PowerShell**.
-3. The installer prepares Node.js 22, installs Ollama using winget (with a signed official-installer fallback when winget is unavailable), starts the local Ollama service, downloads nomic-embed-text, installs npm dependencies silently, and creates a ContextVault shortcut on your Desktop.
-4. Double-click the ContextVault shortcut whenever you want to open the application. It starts the local services and opens http://localhost:3737.
-
-The installer does not impose a Windows 11 build check. Ollama's current Windows support requirement is Windows 10 22H2 or newer, or Windows 11. See the [official Ollama Windows requirements](https://docs.ollama.com/windows).
+2. Right-click `install-contextvault.ps1` and choose **Run with PowerShell**.
+3. The installer prepares Node.js 22, installs Ollama using winget (with a signed official-installer fallback when winget is unavailable), starts Ollama, downloads `nomic-embed-text`, installs dependencies, and creates a ContextVault Desktop shortcut.
+4. Open the shortcut and visit [http://localhost:3737](http://localhost:3737).
 
 ### macOS
 
-1. Download and extract the ContextVault repository.
-2. Double-click install-mac.command.
-3. The installer uses Homebrew to install Node.js 22 and Ollama, starts the Ollama service, downloads nomic-embed-text, installs npm dependencies, and creates ContextVault.command on your Desktop.
-4. Double-click ContextVault.command to start ContextVault and open the browser.
+1. Download and extract the repository.
+2. Double-click `install-mac.command`.
+3. The installer uses Homebrew to prepare Node.js 22 and Ollama, downloads `nomic-embed-text`, installs dependencies, and creates a desktop launcher.
+4. Launch ContextVault and open the local dashboard.
 
-Ollama's current macOS requirement is macOS 14 Sonoma or newer. Homebrew may request your macOS account password during its first setup.
+### linux
 
-### Linux
-
-1. Download and extract the ContextVault repository.
-2. Run install-linux.sh from the extracted folder. If your file manager does not offer a Run option, run chmod +x install-linux.sh && ./install-linux.sh once.
-3. The installer supports APT and DNF, installs Node.js 22 and Ollama using the official Linux installer, downloads nomic-embed-text, installs npm dependencies, and creates a ContextVault application shortcut.
+1. Download and extract the repository.
+2. Run `chmod +x install-linux.sh && ./install-linux.sh`.
+3. The installer supports APT- and DNF-based distributions, prepares Node.js 22 and Ollama, downloads `nomic-embed-text`, and creates an application shortcut.
 4. Launch ContextVault from the Applications menu.
 
-The Linux installer may request administrator approval for operating-system packages and Ollama.
+### Docker alternative
 
-### Docker — Windows, macOS, and Linux
-
-Use Docker when you do not want Node.js or Ollama installed directly on your computer. Docker Engine or Docker Desktop with the Docker Compose plugin must be installed and running.
-
-From the repository folder, run:
+With Docker Engine or Docker Desktop and the Docker Compose plugin installed, run:
 
 ~~~bash
 docker compose up --build
 ~~~
 
-Open http://localhost:3737. The container includes Node.js and Ollama, pulls nomic-embed-text on first startup, and stores the SQLite database and model files in persistent Docker volumes. No host Node.js or Ollama installation is required.
+Then open [http://localhost:3737](http://localhost:3737). Docker Compose stores the SQLite database and Ollama model files in persistent volumes.
 
-To stop the application, press Ctrl+C, or run docker compose down from another terminal. Data remains in the named volumes. To remove the data as well, run docker compose down -v.
+### Index your first project
+
+1. Enter the full path to a local project folder in **Get started with ContextVault**.
+2. Select **Index Project** and let the background indexing job finish.
+3. Search your code with a natural-language question. Live monitoring adds new and changed files to the index.
+
+## Cross-Platform Installation
+
+Choose one installer for your environment. Native installers prepare Node.js, Ollama, the `nomic-embed-text` model, project dependencies, and a launcher for the local dashboard.
+
+### Windows 10 / 11
+
+The installer does not impose a Windows 11 build check. Ollama's current Windows support requirement is Windows 10 22H2 or newer, or Windows 11. See the [official Ollama Windows requirements](https://docs.ollama.com/windows).
+
+### macOS
+
+Ollama's current macOS requirement is macOS 14 Sonoma or newer. Homebrew may request your macOS account password during its first setup.
+
+### Linux
+
+The Linux installer may request administrator approval for operating-system packages and Ollama.
 
 ## Requirements
 
@@ -61,26 +77,14 @@ Native installers prepare Node.js 22.13 or newer in the Node.js 22 release line 
 
 Install Node.js 22 and Ollama, then open a terminal in the project folder.
 
-Install dependencies:
-
 ~~~bash
 npm install
-~~~
-
-Start Ollama and download the embedding model:
-
-~~~bash
 ollama serve
 ollama pull nomic-embed-text
-~~~
-
-Start the development server:
-
-~~~bash
 npm run dev
 ~~~
 
-Open http://localhost:3737. The health endpoint is available at http://localhost:3737/health.
+Open [http://localhost:3737](http://localhost:3737). The health endpoint is available at [http://localhost:3737/health](http://localhost:3737/health).
 
 ## Index Your First Project
 
@@ -96,73 +100,51 @@ Files and folders excluded by the scanner's ignore rules are not indexed.
 
 | Command | Purpose |
 | --- | --- |
-| npm run dev | Start the local development server |
-| npm run build | Compile the TypeScript application |
-| npm start | Start the compiled server |
-| npm test | Run the automated test suite |
-| npm run lint | Run ESLint on the source directory |
-| npm run mcp | Start the stdio MCP server for a compatible desktop client |
+| `npm run dev` | Start the local development server |
+| `npm run build` | Compile the TypeScript application |
+| `npm start` | Start the compiled server |
+| `npm test` | Run the automated test suite |
+| `npm run lint` | Run ESLint on the source directory |
+| `npm run mcp` | Start the stdio MCP server for a compatible desktop client |
 
-See README_MCP.md for MCP desktop client configuration.
+See `README_MCP.md` for MCP desktop client configuration.
 
 ## Pricing & Upgrade
 
 ContextVault offers the following Pro plans:
 
 - **Pro Monthly:** $9 per month.
-- **Pro Yearly:** $79 per year, saving 27% compared with monthly billing.
-- **Founder's Lifetime Deal:** $79 one-time payment for the first 100 users.
+- **Pro Yearly:** $79 per year.
 
-To upgrade, open **Settings → Upgrade to Pro** and complete checkout. Lemon Squeezy sends the license key after purchase. Return to ContextVault, open **Settings → Activate Pro**, paste the key, and select **Activate**. ContextVault validates the key with Lemon Squeezy and activates Pro when the key is valid.
+To upgrade, open **Settings → Upgrade to Pro** and choose your billing period in the Lemon Squeezy checkout. After purchase, use the license key sent by Lemon Squeezy in **Settings → Activate Pro**. ContextVault validates the key and activates Pro when the key is valid.
+
+[Choose Pro Monthly or Yearly](https://witness-engine.lemonsqueezy.com/checkout/buy/2e74fe7c-547a-4483-b09d-5699d6a1b422)
 
 The license activation endpoint is available at `POST /api/license/activate`.
 
 ## Connect with Claude Desktop and Cursor
 
-ContextVault can connect to MCP-compatible AI clients using its local
-Model Context Protocol server. The dashboard generates a machine-specific
-configuration, so Node.js and database paths do not need to be edited manually.
+ContextVault can connect to MCP-compatible AI clients using its local Model Context Protocol server. The dashboard generates a machine-specific configuration, so Node.js and database paths do not need to be edited manually.
 
-### Copy your configuration
-
-1. Start ContextVault and open http://localhost:3737.
+1. Start ContextVault and open [http://localhost:3737](http://localhost:3737).
 2. Click **Settings** in the dashboard header.
 3. Under **AI Integrations**, click **Copy MCP Configuration**.
 4. Paste the copied JSON into your AI client's MCP configuration file.
 5. Save the file and restart the desktop application.
 
-The generated configuration includes the active Node.js executable, MCP entry
-point, absolute SQLite database path, local Ollama URL, and SQLite runtime option.
+The generated configuration includes the active Node.js executable, MCP entry point, absolute SQLite database path, local Ollama URL, and SQLite runtime option.
 
 ### Claude Desktop
-
-Open the Claude Desktop configuration file:
 
 - Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Linux: `~/.config/Claude/claude_desktop_config.json`
 
-Paste the copied JSON into the file. If other MCP servers already exist,
-merge the `contextvault` entry into the existing `mcpServers` object.
-Do not remove your other server configurations.
-
-Save the file and restart Claude Desktop.
+Merge the `contextvault` entry into the existing `mcpServers` object. Do not remove other server configurations. Save the file and restart Claude Desktop.
 
 ### Cursor
 
-For project-specific configuration, create or edit:
-
-~~~text
-.cursor/mcp.json
-~~~
-
-For global configuration, use:
-
-~~~text
-~/.cursor/mcp.json
-~~~
-
-Paste the same copied JSON, save the file, and restart Cursor.
+Use `.cursor/mcp.json` for project-specific configuration or `~/.cursor/mcp.json` for global configuration. Paste the copied JSON, save the file, and restart Cursor.
 
 ### Available ContextVault tools
 
@@ -175,22 +157,20 @@ A Pro license is activated with a valid Lemon Squeezy license key. The plan cann
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| GET | /health | Application health check |
-| POST | /api/scan | Scan a project and return file metadata |
-| POST | /api/index | Index a project into the local database |
-| POST | /api/search | Search indexed context semantically |
-| GET | /api/stats | Return indexed file and chunk counts |
-| GET | /api/config/mcp | Generate a machine-specific MCP client configuration |
-| GET | /api/settings/license | Read the local license selection |
-| PUT | /api/settings/license | Reset the local license selection to Free |
-| POST | /api/license/activate | Validate a Lemon Squeezy license key and activate Pro |
-| POST | /api/watch | Start live monitoring for a project |
+| GET | `/health` | Application health check |
+| POST | `/api/scan` | Scan a project and return file metadata |
+| POST | `/api/index` | Index a project into the local database |
+| POST | `/api/search` | Search indexed context semantically |
+| GET | `/api/stats` | Return indexed file and chunk counts |
+| GET | ` api/config/mcp` | Generate a machine-specific MCP client configuration |
+| GET | `/api/settings/license` | Read the local license status |
+| PUT | `/api/settings/license` | Reset the local license selection to Free |
+| POST | `/api/license/activate` | Validate a Lemon Squeezy license key and activate Pro |
+| POST | `/api/watch` | Start live monitoring for a project |
 
 ## Local Storage and Configuration
 
-The default SQLite database is created at data/contextvault.db.
-
-Supported environment settings:
+The default SQLite database is created at `data/contextvault.db`.
 
 ~~~text
 PORT=3737
@@ -198,15 +178,19 @@ OLLAMA_URL=http://localhost:11434
 DATABASE_PATH=data/contextvault.db
 ~~~
 
-DATABASE_PATH can be set to use a different local SQLite database file. Keep it consistent between the web application and MCP client configuration when both should use the same index.
+`DATABASE_PATH` can be set to use a different local SQLite database file. Keep it consistent between the web application and MCP client configuration when both should use the same index.
 
 ## Local-first Processing
 
-Project scanning, chunking, embedding generation, vector storage, and semantic search are performed by the local ContextVault process and local Ollama service. The application does not automatically send project source files to a hosted embedding API.
+Project scanning, chunking, embedding generation, vector storage, and semantic search are performed by the local ContextVault process and local Ollama service. The application does not automatically send project source files to a hosted embedding API. MCP clients receive the tool results requested by the user.
 
 ## Landing Page
 
-The separate marketing page is available at landing/index.html and can be deployed independently to GitHub Pages or Vercel.
+The marketing page is available at `landing/index.html`. After GitHub Pages is enabled for the repository, run the **Deploy Landing Page** workflow manually from the Actions tab to publish this directory.
+
+## License
+
+License terms have not yet been published. This README deliberately does not label the project MIT, Apache-2.0, or another license until an explicit license file is added.
 
 ## Project Version
 
