@@ -165,10 +165,6 @@ try {
         throw 'package.json was not found. Extract the full ContextVault repository and run this installer from its root folder.'
     }
 
-    if ([Environment]::OSVersion.Version.Build -lt 22000) {
-        throw 'ContextVault distribution scripts require Windows 11 (build 22000 or newer).'
-    }
-
     Write-Info 'Preparing ContextVault for the current Windows user...'
 
     # Install a compatible Node.js 22 runtime when it is missing or outside the project engine range.

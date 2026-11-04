@@ -2,7 +2,7 @@
 
 ContextVault is a local-first developer context and memory system. It indexes a project on your machine, creates searchable embeddings with local Ollama, and lets you find relevant project code through a simple web interface or MCP-compatible desktop tools.
 
-## Quick Start (Windows 11)
+## Quick Start (Windows 10 / 11)
 
 1. **Download the repository.** Clone it with Git or download and extract the repository ZIP from [GitHub](https://github.com/ahmedfayedesmail-ui/contextvault).
 2. **Install Ollama for Windows.** Download it from [ollama.com/download/windows](https://ollama.com/download/windows) and complete its normal Windows installation.
@@ -28,7 +28,7 @@ To use the PowerShell launcher instead of the batch launcher:
 
 ## Requirements
 
-- Windows 11
+- Windows 10 (build 19041 or newer) or Windows 11
 - Node.js 22.13 or newer in the Node.js 22 line (the installer prepares the latest stable 22.x patch release when required)
 - Ollama for Windows (install it before running the first-time installer)
 - The `nomic-embed-text` model in Ollama (downloaded automatically by the launcher when missing)
