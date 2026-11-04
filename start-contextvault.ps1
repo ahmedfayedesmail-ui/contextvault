@@ -70,7 +70,7 @@ try {
 
     $OllamaCommand = Get-Command ollama -CommandType Application -ErrorAction SilentlyContinue
     if (-not $OllamaCommand) {
-        throw 'Ollama was not found. Run install-contextvault.ps1 once to install Ollama.'
+        throw 'Ollama was not found. Install it from https://ollama.com/download/windows, then run install-contextvault.ps1 again.'
     }
 
     # Start the local service only when the API is not already responding.

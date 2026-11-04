@@ -47,7 +47,7 @@ if exist "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" (
 where ollama >nul 2>nul
 if errorlevel 1 (
   echo [ContextVault] Ollama was not found.
-  echo Run install-contextvault.ps1 first to install Ollama.
+  echo Install Ollama from https://ollama.com/download/windows, then run the installer again.
   pause
   exit /b 1
 )
