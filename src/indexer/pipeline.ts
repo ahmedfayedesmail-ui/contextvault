@@ -5,6 +5,7 @@ import { generateEmbedding } from "./embedder";
 import { saveIndexedData } from "../storage/vectors";
 
 import type {
+  ProjectFile,
   TextChunk
 } from "../types";
 
@@ -81,4 +82,26 @@ export async function indexProject(
     filesCount: files.length,
     chunksCount: chunks.length
   };
+}
+
+
+export async function indexSingleFile(
+  file: ProjectFile
+): Promise<void> {
+  const chunks = chunkFile(file);
+  const embeddings: number[][] = [];
+
+  for (const chunk of chunks) {
+    const embedding = await generateEmbedding(
+      chunk.content
+    );
+
+    embeddings.push(embedding);
+  }
+
+  saveIndexedData(
+    [file],
+    chunks,
+    embeddings
+  );
 }

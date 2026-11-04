@@ -10,13 +10,38 @@ import { scanProject } from "../indexer/fileWatcher";
 
 import { indexProject } from "../indexer/pipeline";
 
+import { startLiveWatcher } from "../indexer/liveWatcher";
+
 import { generateEmbedding } from "../indexer/embedder";
 
 import { searchVectors } from "../storage/vectors";
 
+import { getSystemStats } from "../storage/db";
+
 import type { ScannedFile } from "../types";
 
 export const apiRouter = Router();
+
+// GET /api/stats
+
+apiRouter.get("/stats", (_req, res) => {
+  try {
+    return res.json(getSystemStats());
+  } catch (error) {
+    console.error(
+      "[ContextVault] Stats retrieval failed:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Stats retrieval failed",
+      message:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred."
+    });
+  }
+});
 
 const scanRequestSchema = z.object({
   rootPath: z.string()
@@ -140,6 +165,47 @@ apiRouter.post("/index", async (req, res) => {
 
     return res.status(500).json({
       error: "Project indexing failed",
+      message:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred."
+    });
+  }
+});
+
+// POST /api/watch
+
+apiRouter.post("/watch", async (req, res) => {
+  const validation =
+    await scanRequestSchema.safeParseAsync(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      error: "Invalid watch request",
+      details: validation.error.issues
+    });
+  }
+
+  try {
+    const rootPath = path.resolve(
+      validation.data.rootPath
+    );
+
+    startLiveWatcher(rootPath);
+
+    return res.json({
+      success: true,
+      message: "Live project watcher started.",
+      rootPath
+    });
+  } catch (error) {
+    console.error(
+      "[ContextVault] Live watcher startup failed:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Live watcher startup failed",
       message:
         error instanceof Error
           ? error.message

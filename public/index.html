@@ -126,6 +126,31 @@
       line-height: 1.7;
     }
 
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 auto 22px;
+      padding: 13px 19px;
+
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stats-value {
+      color: var(--success);
+      font-weight: 750;
+    }
+
     .search-box {
       display: flex;
       align-items: center;
@@ -321,6 +346,10 @@
     }
 
     @media (max-width: 540px) {
+      .stats-bar {
+        width: 100%;
+      }
+
       .container {
         padding: 35px 0;
       }
@@ -384,6 +413,14 @@
       </p>
 
     </section>
+
+    <div class="stats-bar" role="status" aria-live="polite">
+      <span>Files:</span>
+      <span id="total-files" class="stats-value">0</span>
+      <span aria-hidden="true">|</span>
+      <span>Chunks:</span>
+      <span id="total-chunks" class="stats-value">0</span>
+    </div>
 
     <form id="search-form">
 
@@ -462,6 +499,33 @@
     const resultCount = document.getElementById("result-count");
 
     const status = document.getElementById("status");
+
+    const totalFiles = document.getElementById("total-files");
+
+    const totalChunks = document.getElementById("total-chunks");
+
+    async function refreshStats() {
+      try {
+        const response = await fetch("/api/stats");
+
+        if (!response.ok) {
+          throw new Error("Unable to load system statistics.");
+        }
+
+        const stats = await response.json();
+
+        totalFiles.textContent = String(stats.totalFiles ?? 0);
+        totalChunks.textContent = String(stats.totalChunks ?? 0);
+      } catch (error) {
+        console.error(
+          "[ContextVault] Stats refresh failed:",
+          error
+        );
+      }
+    }
+
+    void refreshStats();
+    window.setInterval(() => void refreshStats(), 5000);
 
     function createResultCard(result) {
       const card = document.createElement("article");

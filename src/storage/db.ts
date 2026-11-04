@@ -49,4 +49,28 @@ database.exec(`
   CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);
 `);
 
+interface CountRow {
+  total: number | bigint;
+}
+
+export function getSystemStats(): {
+  totalFiles: number;
+  totalChunks: number;
+} {
+  const filesRow = database.prepare(`
+    SELECT COUNT(*) AS total
+    FROM files
+  `).get() as CountRow | undefined;
+
+  const chunksRow = database.prepare(`
+    SELECT COUNT(*) AS total
+    FROM chunks
+  `).get() as CountRow | undefined;
+
+  return {
+    totalFiles: Number(filesRow?.total ?? 0),
+    totalChunks: Number(chunksRow?.total ?? 0)
+  };
+}
+
 export default database;
