@@ -2,6 +2,13 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Windows Ollama Model Verification Hotfix
+
+- Rechecked `nomic-embed-text` through `ollama list` after the installer pull step and fail clearly if the model is still unavailable.
+- Updated the Windows launcher to verify the model again after pulling it, and block application/browser startup until verification succeeds.
+- Added the alternate per-user Ollama installation path to the batch launcher and corrected the `node_modules` directory check.
+- Expanded installer and launcher regression assertions for model verification and launch ordering.
+
 ## Windows Ollama Model Readiness Hotfix
 
 - Hardened installer Ollama startup to pass an explicit scalar executable path to `Start-Process`, retaining standard, discovered-location, and PATH fallbacks.

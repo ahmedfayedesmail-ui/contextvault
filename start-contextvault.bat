@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-if not exist "node_modules\\" (
+if not exist "node_modules\." (
     echo Installing ContextVault dependencies...
     call npm install
     if errorlevel 1 (
@@ -14,6 +14,7 @@ if not exist "node_modules\\" (
 
 rem Resolve Ollama without relying on one fixed install location.
 set "OLLAMA_EXE=%LOCALAPPDATA%\Programs\Ollama\ollama.exe"
+if not exist "%OLLAMA_EXE%" if exist "%LOCALAPPDATA%\Ollama\ollama.exe" set "OLLAMA_EXE=%LOCALAPPDATA%\Ollama\ollama.exe"
 if not exist "%OLLAMA_EXE%" if exist "%ProgramFiles%\Ollama\ollama.exe" set "OLLAMA_EXE=%ProgramFiles%\Ollama\ollama.exe"
 if not exist "%OLLAMA_EXE%" if exist "%ProgramFiles(x86)%\Ollama\ollama.exe" set "OLLAMA_EXE=%ProgramFiles(x86)%\Ollama\ollama.exe"
 if not exist "%OLLAMA_EXE%" set "OLLAMA_EXE=ollama"
@@ -44,6 +45,9 @@ goto wait_for_ollama
 :ollama_ready
 echo Checking the nomic-embed-text model...
 set "OLLAMA_LIST_FILE=%TEMP%\contextvault-ollama-list.txt"
+set "MODEL_CHECK_AFTER_PULL=0"
+
+:run_ollama_list
 if "%OLLAMA_EXE%"=="ollama" goto list_ollama_from_path
 "%OLLAMA_EXE%" list > "%OLLAMA_LIST_FILE%" 2>&1
 goto ollama_list_done
@@ -55,6 +59,7 @@ ollama list > "%OLLAMA_LIST_FILE%" 2>&1
 if errorlevel 1 goto ollama_list_failed
 findstr /I /C:"nomic-embed-text" "%OLLAMA_LIST_FILE%" >nul
 if not errorlevel 1 goto model_ready
+if "%MODEL_CHECK_AFTER_PULL%"=="1" goto ollama_model_verify_failed
 
 echo nomic-embed-text is missing. Downloading it now...
 if "%OLLAMA_EXE%"=="ollama" goto pull_ollama_from_path
@@ -66,7 +71,8 @@ ollama pull nomic-embed-text
 
 :ollama_pull_done
 if errorlevel 1 goto ollama_pull_failed
-
+set "MODEL_CHECK_AFTER_PULL=1"
+goto run_ollama_list
 :model_ready
 if exist "%OLLAMA_LIST_FILE%" del "%OLLAMA_LIST_FILE%" >nul 2>&1
 echo Embedding model is ready.
@@ -101,6 +107,12 @@ exit /b 1
 
 :ollama_pull_failed
 echo Failed to download nomic-embed-text. ContextVault cannot index projects without it.
+pause
+exit /b 1
+
+:ollama_model_verify_failed
+echo nomic-embed-text is still missing after the download attempt.
+echo ContextVault cannot index projects without the embedding model.
 pause
 exit /b 1
 

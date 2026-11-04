@@ -50,6 +50,8 @@ describe('cross-platform distribution files', () => {
     expect(installer).toContain("Start-Process -FilePath 'ollama' -ArgumentList 'serve' -WindowStyle Hidden -ErrorAction SilentlyContinue");
     expect(installer).toContain('$ModelList = & $OllamaExePath list 2>&1');
     expect(installer).toContain('& $OllamaExePath pull nomic-embed-text');
+    expect(installer).toContain('$VerifiedModelList = & $OllamaExePath list 2>&1');
+    expect(installer).toContain("if (($VerifiedModelList -join [Environment]::NewLine) -notmatch 'nomic-embed-text')");
     expect(installer).toContain("Replace('__OLLAMA_EXE__', $OllamaExePath)");
     expect(installer).toContain('nomic-embed-text');
     expect(installer).toContain('Get-AuthenticodeSignature');
@@ -69,6 +71,11 @@ describe('cross-platform distribution files', () => {
     expect(launcher).toContain('ollama pull nomic-embed-text');
     expect(launcher).toContain('goto wait_for_ollama');
     expect(launcher).toContain('goto ollama_pull_failed');
+    expect(launcher).toContain('if not exist "node_modules\\\\." (');
+    expect(launcher).toContain('%LOCALAPPDATA%\\\\Ollama\\\\ollama.exe');
+    expect(launcher).toContain('set "MODEL_CHECK_AFTER_PULL=1"');
+    expect(launcher).toContain('goto run_ollama_list');
+    expect(launcher).toContain('goto ollama_model_verify_failed');
     expect(launcher).toContain('npm run dev');
     expect(launcher).toContain('http://localhost:3737');
     expect(launcher.indexOf('ollama pull nomic-embed-text')).toBeLessThan(launcher.indexOf('start "" "http://localhost:3737"'));

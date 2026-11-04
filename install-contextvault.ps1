@@ -386,6 +386,13 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'The nomic-embed-text model download failed.' }
     }
 
+    Write-Info 'Verifying the embedding model is available...'
+    $VerifiedModelList = & $OllamaExePath list 2>&1
+    if ($LASTEXITCODE -ne 0) { throw 'Ollama could not verify its installed models after the model check.' }
+    if (($VerifiedModelList -join [Environment]::NewLine) -notmatch 'nomic-embed-text') {
+        throw 'nomic-embed-text is still missing after the download attempt. ContextVault cannot index projects.'
+    }
+
     Write-Info 'Installing ContextVault dependencies in a hidden process...'
     $SystemCmd = Join-Path ([Environment]::GetFolderPath('System')) 'cmd.exe'
     $NpmArguments = '/d /c ""' + $NpmCommand + '" install"'
