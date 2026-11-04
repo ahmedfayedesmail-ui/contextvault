@@ -15,15 +15,22 @@ function Refresh-CurrentPath {
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 }
 
-function Get-CompatibleNodeCommand {
+function Get-SupportedNodeCommand {
     $Command = Get-Command node -CommandType Application -ErrorAction SilentlyContinue
     if (-not $Command) { return $null }
+
     try {
         $VersionText = (& $Command.Source --version 2>$null).Trim()
         $Version = [version]$VersionText.TrimStart('v')
-        if ($Version.Major -eq 22 -and $Version -ge [version]'22.13.0') { return $Command }
+
+        # Accept the existing Node.js installation when it is 22.13.0 or newer.
+        # This includes newer major releases such as Node.js 23 and 24.
+        if ($Version -ge [version]'22.13.0') { return $Command }
     }
-    catch { return $null }
+    catch {
+        return $null
+    }
+
     return $null
 }
 
@@ -180,11 +187,19 @@ try {
     }
 
     Write-Info 'Preparing Node.js...'
-    if (-not (Get-CompatibleNodeCommand)) { Install-Node22Runtime }
 
-    # Rebuild PATH even when Node.js was installed before this installer was started.
+    # Rebuild PATH before detection so existing Machine/User Node.js installations are discovered.
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    $NodeCommand = Get-CompatibleNodeCommand
+    $NodeCommand = Get-SupportedNodeCommand
+
+    # Preserve and use an already installed supported Node.js version; download Node.js 22 only if absent/too old.
+    if (-not $NodeCommand) {
+        Install-Node22Runtime
+
+        # Re-read persisted PATH immediately after installing Node.js.
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+        $NodeCommand = Get-SupportedNodeCommand
+    }
     if (-not $NodeCommand) {
         $PortableRoot = Join-Path $env:LOCALAPPDATA 'ContextVault\runtime'
         $PortableNode = Get-ChildItem -LiteralPath $PortableRoot -Directory -Filter 'node-v22*-win-*' -ErrorAction SilentlyContinue |
@@ -193,10 +208,10 @@ try {
             Select-Object -First 1
         if ($PortableNode) {
             $env:Path = "$($PortableNode.FullName);$env:Path"
-            $NodeCommand = Get-CompatibleNodeCommand
+            $NodeCommand = Get-SupportedNodeCommand
         }
     }
-    if (-not $NodeCommand) { throw 'Node.js 22.13 or newer could not be found after installation.' }
+    if (-not $NodeCommand) { throw 'Node.js 22.13.0 or newer could not be found after checking the existing installation and installing the fallback runtime.' }
 
     $NodeDirectory = Split-Path -Parent $NodeCommand.Source
     $NpmCommand = Join-Path $NodeDirectory 'npm.cmd'

@@ -5,7 +5,7 @@
   "description": "Local-first developer context and memory system",
   "main": "dist/server.js",
   "engines": {
-    "node": ">=22.13.0 <23"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--experimental-sqlite tsx watch src/server.ts",
