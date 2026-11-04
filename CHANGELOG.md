@@ -2,6 +2,14 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Session 12 — Lemon Squeezy Licensing & Pricing
+
+- Added server-side Lemon Squeezy license-key validation and persistent Pro activation.
+- Added POST /api/license/activate and prevented local settings from granting Pro without a valid key.
+- Updated Settings with monthly, annual, and Founder's Lifetime pricing, checkout link, and license activation flow.
+- Added license activation instructions and pricing to the README.
+- Added valid/invalid license validation tests with a mocked fetch response.
+
 ## Session 11 — Settings, Licensing UI, and MCP Setup
 
 - Added a Settings modal with local Free/Pro selection and clear messaging that plan selection does not verify payment or enable paid functionality.

@@ -68,22 +68,34 @@ describe("ContextVault settings", () => {
     });
   });
 
-  it("saves and retrieves the selected license", async () => {
+  it("does not allow Pro to be enabled without license validation", async () => {
     const updateResponse = await request(app)
       .put("/api/settings/license")
       .send({ license: "Pro" });
 
-    expect(updateResponse.status).toBe(200);
-    expect(updateResponse.body).toMatchObject({
-      success: true,
-      license: "Pro",
-      verified: false
-    });
+    expect(updateResponse.status).toBe(403);
 
     const readResponse = await request(app)
       .get("/api/settings/license");
 
-    expect(readResponse.body.license).toBe("Pro");
+    expect(readResponse.status).toBe(200);
+    expect(readResponse.body).toEqual({
+      license: "Free",
+      verified: false
+    });
+  });
+
+  it("allows the local license state to be reset to Free", async () => {
+    const response = await request(app)
+      .put("/api/settings/license")
+      .send({ license: "Free" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      success: true,
+      license: "Free",
+      verified: false
+    });
   });
 
   it("rejects invalid license values", async () => {

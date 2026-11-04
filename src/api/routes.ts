@@ -24,6 +24,7 @@ import {
   getSystemStats,
   getLicense,
   setLicense,
+  validateLicenseKey,
   resolvedDatabasePath
 } from "../storage/db";
 
@@ -141,9 +142,11 @@ const licenseRequestSchema = z.object({
 
 apiRouter.get("/settings/license", (_req, res) => {
   try {
+    const license = getLicense();
+
     return res.json({
-      license: getLicense(),
-      verified: false
+      license,
+      verified: license === "Pro"
     });
   } catch (error) {
     console.error(
@@ -169,16 +172,19 @@ apiRouter.put("/settings/license", (req, res) => {
     });
   }
 
+  if (validation.data.license === "Pro") {
+    return res.status(403).json({
+      error: "A valid Lemon Squeezy license key is required to activate Pro."
+    });
+  }
+
   try {
-    const license = setLicense(validation.data.license);
+    const license = setLicense("Free");
 
     return res.json({
       success: true,
       license,
-      verified: false,
-      message:
-        "This is a local display selection only. " +
-        "It does not activate paid features."
+      verified: false
     });
   } catch (error) {
     console.error(
@@ -188,6 +194,59 @@ apiRouter.put("/settings/license", (req, res) => {
 
     return res.status(500).json({
       error: "Unable to update license settings."
+    });
+  }
+});
+
+
+// POST /api/license/activate
+
+const licenseActivationSchema = z.object({
+  licenseKey: z.string().trim().min(1).max(256)
+});
+
+apiRouter.post("/license/activate", async (req, res) => {
+  const validation = licenseActivationSchema.safeParse(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      success: false,
+      error: "A valid license key is required.",
+      details: validation.error.issues
+    });
+  }
+
+  try {
+    const activated = await validateLicenseKey(
+      validation.data.licenseKey
+    );
+
+    if (!activated) {
+      return res.status(422).json({
+        success: false,
+        activated: false,
+        license: getLicense(),
+        verified: getLicense() === "Pro",
+        message: "The license key is invalid or could not be verified."
+      });
+    }
+
+    return res.json({
+      success: true,
+      activated: true,
+      license: "Pro",
+      verified: true,
+      message: "Pro has been activated successfully."
+    });
+  } catch (error) {
+    console.error(
+      "[ContextVault] License activation failed:",
+      error
+    );
+
+    return res.status(502).json({
+      success: false,
+      error: "License activation service is unavailable."
     });
   }
 });

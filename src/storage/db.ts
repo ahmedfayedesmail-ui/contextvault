@@ -61,6 +61,11 @@ database.prepare(`
   VALUES (?, ?)
 `).run("license", "Free");
 
+database.prepare(`
+  INSERT OR IGNORE INTO settings (key, value)
+  VALUES (?, ?)
+`).run("license_verified", "false");
+
 interface CountRow {
   total: number | bigint;
 }
@@ -78,7 +83,15 @@ export function getLicense(): LicenseType {
     WHERE key = ?
   `).get("license") as SettingRow | undefined;
 
-  return row?.value === "Pro" ? "Pro" : "Free";
+  const verification = database.prepare(`
+    SELECT value
+    FROM settings
+    WHERE key = ?
+  `).get("license_verified") as SettingRow | undefined;
+
+  return row?.value === "Pro" && verification?.value === "true"
+    ? "Pro"
+    : "Free";
 }
 
 export function setLicense(license: LicenseType): LicenseType {
@@ -89,7 +102,64 @@ export function setLicense(license: LicenseType): LicenseType {
       value = excluded.value
   `).run("license", license);
 
+  // A locally written plan value is never sufficient to grant Pro.
+  database.prepare(`
+    INSERT INTO settings (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value
+  `).run("license_verified", "false");
+
   return license;
+}
+
+export async function validateLicenseKey(key: string): Promise<boolean> {
+  const normalizedKey = key.trim();
+
+  if (!normalizedKey) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(
+      "https://api.lemonsqueezy.com/v1/licenses/validate",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          license_key: normalizedKey
+        }).toString()
+      }
+    );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const result = await response.json() as {
+      valid?: boolean;
+    };
+
+    if (result.valid !== true) {
+      return false;
+    }
+
+    setLicense("Pro");
+
+    database.prepare(`
+      INSERT INTO settings (key, value)
+      VALUES (?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value
+    `).run("license_verified", "true");
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function getSystemStats(): {

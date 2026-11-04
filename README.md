@@ -105,6 +105,18 @@ Files and folders excluded by the scanner's ignore rules are not indexed.
 
 See README_MCP.md for MCP desktop client configuration.
 
+## Pricing & Upgrade
+
+ContextVault offers the following Pro plans:
+
+- **Pro Monthly:** $9 per month.
+- **Pro Yearly:** $79 per year, saving 27% compared with monthly billing.
+- **Founder's Lifetime Deal:** $79 one-time payment for the first 100 users.
+
+To upgrade, open **Settings → Upgrade to Pro** and complete checkout. Lemon Squeezy sends the license key after purchase. Return to ContextVault, open **Settings → Activate Pro**, paste the key, and select **Activate**. ContextVault validates the key with Lemon Squeezy and activates Pro when the key is valid.
+
+The license activation endpoint is available at `POST /api/license/activate`.
+
 ## Connect with Claude Desktop and Cursor
 
 ContextVault can connect to MCP-compatible AI clients using its local
@@ -157,8 +169,7 @@ Paste the same copied JSON, save the file, and restart Cursor.
 - `search_context` — searches locally indexed project context.
 - `index_project` — indexes a local project directory.
 
-The License selector in Settings stores a local display preference only.
-Selecting Pro does not verify a payment or activate paid functionality.
+A Pro license is activated with a valid Lemon Squeezy license key. The plan cannot be enabled by changing a local display preference.
 
 ## API Endpoints
 
@@ -171,7 +182,8 @@ Selecting Pro does not verify a payment or activate paid functionality.
 | GET | /api/stats | Return indexed file and chunk counts |
 | GET | /api/config/mcp | Generate a machine-specific MCP client configuration |
 | GET | /api/settings/license | Read the local license selection |
-| PUT | /api/settings/license | Save the local license selection |
+| PUT | /api/settings/license | Reset the local license selection to Free |
+| POST | /api/license/activate | Validate a Lemon Squeezy license key and activate Pro |
 | POST | /api/watch | Start live monitoring for a project |
 
 ## Local Storage and Configuration

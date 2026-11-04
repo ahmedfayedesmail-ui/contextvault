@@ -430,43 +430,128 @@
       line-height: 1.6;
     }
 
-    .license-options {
+    .pricing-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
 
-    .license-option {
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
+    .pricing-card {
       padding: 15px;
       background: #0d1119;
       border: 1px solid var(--border);
       border-radius: 11px;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
     }
 
-    .license-option:has(input:checked) {
-      border-color: var(--accent);
-      background: rgba(139, 124, 255, 0.09);
-    }
-
-    .license-option input { accent-color: var(--accent); }
-    .license-name { font-size: 15px; font-weight: 750; }
-    .license-description { color: var(--muted); font-size: 11px; }
-
-    .license-note {
-      margin: 13px 0 0;
-      padding: 11px;
+    .pricing-card.featured {
+      border-color: rgba(139, 124, 255, 0.65);
       background: rgba(139, 124, 255, 0.07);
-      border: 1px solid rgba(139, 124, 255, 0.2);
-      border-radius: 9px;
+    }
+
+    .pricing-card h4 {
+      margin: 0 0 9px;
+      font-size: 14px;
+    }
+
+    .pricing-price {
+      margin: 0;
+      color: var(--text);
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+    }
+
+    .pricing-period {
       color: var(--muted);
       font-size: 11px;
-      line-height: 1.7;
+      font-weight: 500;
     }
+
+    .pricing-detail {
+      min-height: 32px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .pricing-saving {
+      display: inline-block;
+      margin-top: 7px;
+      padding: 4px 7px;
+      border-radius: 6px;
+      background: rgba(72, 214, 160, 0.1);
+      color: var(--success);
+      font-size: 10px;
+      font-weight: 750;
+    }
+
+    .upgrade-button,
+    .activate-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 11px 15px;
+      border: 0;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 750;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .upgrade-button {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .upgrade-button:hover,
+    .activate-button:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .activation-form {
+      display: flex;
+      gap: 9px;
+      align-items: stretch;
+    }
+
+    .license-key-input {
+      flex: 1;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #0d1119;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .license-key-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .activate-button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .pro-activated {
+      padding: 14px;
+      border: 1px solid rgba(72, 214, 160, 0.35);
+      border-radius: 10px;
+      background: rgba(72, 214, 160, 0.08);
+      color: var(--success);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    [hidden] { display: none !important; }
 
     .settings-status {
       min-height: 16px;
@@ -785,6 +870,16 @@
         padding: 15px;
       }
     }
+    @media (max-width: 560px) {
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .activation-form {
+        flex-direction: column;
+      }
+    }
+
   </style>
 </head>
 
@@ -834,35 +929,70 @@
         </div>
 
         <section class="settings-section">
-          <h3>License</h3>
+          <h3>License &amp; Pricing</h3>
           <p class="settings-description">
-            Select the plan displayed by ContextVault.
+            Upgrade to ContextVault Pro with a monthly, annual, or lifetime license.
           </p>
 
-          <div class="license-options">
-            <label class="license-option">
-              <input type="radio" name="license" value="Free">
-              <span class="license-name">Free</span>
-              <span class="license-description">Free plan</span>
-            </label>
-            <label class="license-option">
-              <input type="radio" name="license" value="Pro">
-              <span class="license-name">Pro</span>
-              <span class="license-description">Pro plan</span>
-            </label>
+          <div id="license-upgrade-panel">
+            <div class="pricing-grid">
+              <div class="pricing-card featured">
+                <h4>Pro</h4>
+                <p class="pricing-price">$9 <span class="pricing-period">/ month</span></p>
+                <p class="pricing-detail">Or $79 / year, billed annually.</p>
+                <span class="pricing-saving">Save 27% annually</span>
+                <a
+                  class="upgrade-button"
+                  href="https://contextvault.lemonsqueezy.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >Upgrade to Pro</a>
+              </div>
+
+              <div class="pricing-card">
+                <h4>Founder's Lifetime Deal</h4>
+                <p class="pricing-price">$79 <span class="pricing-period">/ once</span></p>
+                <p class="pricing-detail">Lifetime Pro access for the first 100 users only.</p>
+              </div>
+            </div>
           </div>
 
-          <p class="license-note">
-            The plan selector is currently a local UI setting.
-            Selecting Pro does not verify payment or activate paid features.
-          </p>
-          <p
-            id="license-status"
-            class="settings-status"
-            role="status"
-            aria-live="polite"
-          ></p>
+          <div id="pro-activated" class="pro-activated" role="status" hidden>
+            Pro Activated ✓
+          </div>
         </section>
+
+        <div id="activate-pro-section">
+          <section class="settings-section">
+            <h3>Activate Pro</h3>
+            <p class="settings-description">
+              Enter the license key sent to you after purchase.
+            </p>
+
+            <form id="license-activation-form" class="activation-form">
+              <input
+                id="license-key"
+                class="license-key-input"
+                type="text"
+                placeholder="Enter your license key"
+                aria-label="License key"
+                autocomplete="off"
+                spellcheck="false"
+                required
+              >
+              <button id="license-activate-button" class="activate-button" type="submit">
+                Activate
+              </button>
+            </form>
+
+            <p
+              id="license-status"
+              class="settings-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+          </section>
+        </div>
 
         <div class="settings-divider"></div>
 
@@ -1114,7 +1244,12 @@
     const copyMcpButton = document.getElementById("copy-mcp-configuration");
     const mcpCopyStatus = document.getElementById("mcp-copy-status");
     const licenseStatus = document.getElementById("license-status");
-    const licenseInputs = document.querySelectorAll('input[name="license"]');
+    const licenseActivationForm = document.getElementById("license-activation-form");
+    const licenseKeyInput = document.getElementById("license-key");
+    const licenseActivateButton = document.getElementById("license-activate-button");
+    const licenseUpgradePanel = document.getElementById("license-upgrade-panel");
+    const activateProSection = document.getElementById("activate-pro-section");
+    const proActivated = document.getElementById("pro-activated");
 
     const progressPanel = document.getElementById("index-progress");
     const progressLabel = document.getElementById("index-progress-label");
@@ -1153,9 +1288,14 @@
           "Unable to load license settings."
         );
 
-        licenseInputs.forEach((input) => {
-          input.checked = input.value === data.license;
-        });
+        const isProActivated =
+          data.license === "Pro" && data.verified === true;
+
+        licenseUpgradePanel.hidden = isProActivated;
+        activateProSection.hidden = isProActivated;
+        proActivated.hidden = !isProActivated;
+        licenseStatus.className = "settings-status";
+        licenseStatus.textContent = "";
       } catch (error) {
         licenseStatus.className = "settings-status error";
         licenseStatus.textContent =
@@ -1180,36 +1320,46 @@
       }
     });
 
-    licenseInputs.forEach((input) => {
-      input.addEventListener("change", async () => {
-        if (!input.checked) return;
+    licenseActivationForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
 
-        licenseStatus.className = "settings-status";
-        licenseStatus.textContent = "Saving...";
+      const licenseKey = licenseKeyInput.value.trim();
 
-        try {
-          const response = await fetch("/api/settings/license", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ license: input.value })
-          });
+      if (!licenseKey || licenseActivateButton.disabled) {
+        return;
+      }
 
-          const result = await readJsonResponse(
-            response,
-            "Unable to save license selection."
-          );
+      licenseActivateButton.disabled = true;
+      licenseStatus.className = "settings-status";
+      licenseStatus.textContent = "Checking your license key...";
 
-          licenseStatus.textContent = `${result.license} selected.`;
-        } catch (error) {
-          licenseStatus.className = "settings-status error";
-          licenseStatus.textContent =
-            error instanceof Error
-              ? error.message
-              : "Unable to save license selection.";
+      try {
+        const response = await fetch("/api/license/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ licenseKey })
+        });
 
-          await loadLicenseSettings();
+        const result = await readJsonResponse(
+          response,
+          "Unable to activate this license key."
+        );
+
+        if (!result.activated || result.verified !== true) {
+          throw new Error("The license key could not be activated.");
         }
-      });
+
+        licenseKeyInput.value = "";
+        await loadLicenseSettings();
+      } catch (error) {
+        licenseStatus.className = "settings-status error";
+        licenseStatus.textContent =
+          error instanceof Error
+            ? error.message
+            : "Unable to activate this license key.";
+      } finally {
+        licenseActivateButton.disabled = false;
+      }
     });
 
     copyMcpButton.addEventListener("click", async () => {
