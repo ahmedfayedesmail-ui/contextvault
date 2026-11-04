@@ -2,9 +2,26 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Session 8 — Windows Distribution and Productization
+
+- Added a double-click Windows batch launcher that checks Node.js and Ollama, starts the local Ollama service when needed, pulls `nomic-embed-text` when missing, installs npm dependencies on first launch, and opens the web application.
+- Added a PowerShell launcher with prerequisite checks, colored status output, and error handling.
+- Added a first-run installer that resolves the latest stable Node.js 22.x release from the official release index, verifies its SHA-256 checksum, installs npm dependencies, and creates a Desktop launcher and shortcut. Ollama is installed manually from its official Windows download page.
+- Added a standalone responsive dark-mode landing page under `landing/`, separate from the application assets in `public/`.
+- Added installer asset tests for the Windows scripts and landing page.
+
 ## Planned for v0.2
 
+- [ ] Add integration tests for the installer scripts on a real Windows 11 virtual machine.
 - [ ] Add `stopCurrentWatcher()` and call it before starting a watcher for a different project, closing the previous watcher so project switching does not leave monitoring attached only to the first project.
+
+## Session 7 — Product Onboarding
+
+- Added an onboarding panel with a first-project welcome message and a project path field.
+- Added the Index Project flow, which indexes the selected project and then starts live watching.
+- Added status feedback and graceful handling for failed indexing or watcher requests.
+- Added in-memory database tests for the stats endpoint and the project indexing endpoint.
+- Improved the README with first-run setup and project onboarding instructions.
 
 ## Session 6 — Live Indexing and System Statistics
 

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="description" content="ContextVault keeps your codebase searchable and remembered on your own machine.">
+  <title>ContextVault — Your codebase, remembered</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d12;
+      --surface: #121620;
+      --surface-2: #171d29;
+      --border: #273044;
+      --text: #f0f2f8;
+      --muted: #9aa5b9;
+      --accent: #9182ff;
+      --accent-2: #b2a8ff;
+      --green: #55d8a4;
+      --orange: #ffad70;
+      --shadow: 0 28px 80px rgba(0, 0, 0, .38);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 78% 9%, rgba(145, 130, 255, .16), transparent 27rem),
+        radial-gradient(circle at 12% 34%, rgba(85, 216, 164, .07), transparent 22rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .wrap { width: min(1120px, calc(100% - 44px)); margin: 0 auto; }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 82px;
+      border-bottom: 1px solid rgba(154, 165, 185, .12);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 760; letter-spacing: -.04em; }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(145, 130, 255, .42);
+      border-radius: 12px;
+      background: rgba(145, 130, 255, .12);
+      color: var(--accent-2);
+      font-size: 19px;
+      font-weight: 850;
+    }
+
+    .nav-links { display: flex; align-items: center; gap: 28px; color: var(--muted); font-size: 13px; }
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-cta, .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 19px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 750;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    .nav-cta { min-height: 38px; padding: 0 15px; }
+    .button:hover, .nav-cta:hover { transform: translateY(-2px); background: #a195ff; }
+    .button.secondary { background: transparent; border-color: var(--border); color: var(--text); }
+    .button.secondary:hover { background: var(--surface-2); border-color: #4b5570; }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(400px, .98fr);
+      align-items: center;
+      gap: 62px;
+      padding: 92px 0 82px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 11px;
+      border: 1px solid rgba(85, 216, 164, .2);
+      border-radius: 99px;
+      background: rgba(85, 216, 164, .07);
+      color: #a4e8cc;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before { width: 7px; height: 7px; border-radius: 50%; background: var(--green); content: ""; box-shadow: 0 0 14px rgba(85, 216, 164, .65); }
+
+    h1 {
+      max-width: 650px;
+      margin: 22px 0 18px;
+      font-size: clamp(42px, 6vw, 70px);
+      line-height: 1.03;
+      letter-spacing: -.065em;
+      font-weight: 820;
+    }
+
+    h1 span {
+      background: linear-gradient(100deg, #c1b8ff 5%, #8f80ff 52%, #6fdcb2 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-copy { max-width: 530px; margin: 0; color: var(--muted); font-size: 17px; line-height: 1.8; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+    .microcopy { margin-top: 17px; color: #748097; font-size: 11px; }
+
+    .product-window {
+      position: relative;
+      padding: 14px;
+      border: 1px solid rgba(169, 177, 203, .2);
+      border-radius: 20px;
+      background: linear-gradient(145deg, rgba(28, 34, 49, .95), rgba(15, 19, 28, .98));
+      box-shadow: var(--shadow);
+      transform: perspective(1100px) rotateY(-5deg) rotateX(2deg);
+    }
+
+    .product-window::before {
+      position: absolute;
+      z-index: -1;
+      inset: 30px -20px -22px 34px;
+      border: 1px solid rgba(145, 130, 255, .18);
+      border-radius: 22px;
+      content: "";
+      filter: blur(.2px);
+    }
+
+    .window-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 14px; color: var(--muted); font-size: 11px; }
+    .window-dots { display: flex; gap: 6px; }
+    .window-dots i { width: 7px; height: 7px; border-radius: 50%; background: #5b6478; }
+    .window-dots i:first-child { background: #ff897f; }
+    .window-dots i:nth-child(2) { background: #f3bf73; }
+    .window-dots i:nth-child(3) { background: #69d9a5; }
+    .window-title { font-weight: 700; letter-spacing: .02em; }
+    .window-status { color: var(--green); }
+
+    .mock-app {
+      overflow: hidden;
+      min-height: 390px;
+      border: 1px solid #2b3449;
+      border-radius: 13px;
+      background: #0e121b;
+    }
+
+    .mock-top { display: flex; align-items: center; gap: 9px; padding: 17px 18px; border-bottom: 1px solid #242c3c; }
+    .mock-icon { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid #5449a0; border-radius: 8px; background: #211d3b; color: #b8afff; font-size: 13px; font-weight: 800; }
+    .mock-name { font-size: 12px; font-weight: 750; }
+    .mock-label { margin-left: auto; color: #8792a7; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+    .mock-content { padding: 23px 22px; }
+    .mock-heading { margin: 0; font-size: 20px; letter-spacing: -.04em; }
+    .mock-sub { margin: 5px 0 17px; color: #818da3; font-size: 10px; }
+    .mock-stats { display: flex; gap: 9px; margin-bottom: 18px; }
+    .stat { flex: 1; padding: 11px 12px; border: 1px solid #2c3548; border-radius: 9px; background: #151b27; }
+    .stat small { display: block; color: #7e8aa0; font-size: 9px; }
+    .stat strong { display: block; margin-top: 3px; color: #a8efcf; font-size: 17px; }
+    .mock-search { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; padding: 11px 12px; border: 1px solid #554b9d; border-radius: 9px; background: #17182a; color: #b3bbce; font-size: 10px; }
+    .search-glyph { color: #a99dff; font-size: 13px; }
+    .result { margin-top: 9px; padding: 12px; border: 1px solid #293347; border-radius: 9px; background: #131a26; }
+    .result-head { display: flex; justify-content: space-between; gap: 12px; color: #a99dff; font-size: 9px; font-weight: 700; }
+    .result-match { color: #80dfb7; }
+    .code-line { margin-top: 9px; color: #aab4c7; font-family: Consolas, "Courier New", monospace; font-size: 9px; line-height: 1.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .code-line .purple { color: #b6aaff; }
+    .code-line .green { color: #80dfb7; }
+
+    .trust-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 34px; padding: 20px 0 62px; border-top: 1px solid rgba(154, 165, 185, .1); color: #7f8ba1; font-size: 11px; }
+    .trust-row strong { color: #b6bfd0; font-weight: 700; }
+    .trust-item { display: inline-flex; align-items: center; gap: 8px; }
+    .trust-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+    .section { padding: 68px 0; }
+    .section-heading { max-width: 650px; margin: 0 auto 38px; text-align: center; }
+    .section-kicker { color: var(--accent-2); font-size: 11px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
+    h2 { margin: 10px 0 12px; font-size: clamp(29px, 4vw, 42px); line-height: 1.15; letter-spacing: -.05em; }
+    .section-heading p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.8; }
+
+    .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; }
+    .feature {
+      min-height: 204px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: linear-gradient(150deg, rgba(23, 29, 41, .96), rgba(16, 20, 29, .96));
+    }
+    .feature-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(145, 130, 255, .28); border-radius: 11px; background: rgba(145, 130, 255, .1); color: #b9b0ff; font-size: 17px; }
+    .feature h3 { margin: 19px 0 7px; font-size: 15px; letter-spacing: -.02em; }
+    .feature p { margin: 0; color: #8d98ac; font-size: 12px; line-height: 1.75; }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      counter-reset: step;
+    }
+    .step { padding: 23px; border: 1px solid var(--border); border-radius: 14px; background: rgba(18, 22, 32, .72); counter-increment: step; }
+    .step::before { content: "0" counter(step); color: #a89cff; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+    .step h3 { margin: 12px 0 7px; font-size: 15px; }
+    .step p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+
+    .faq { max-width: 780px; margin: 0 auto; border-top: 1px solid var(--border); }
+    details { padding: 20px 2px; border-bottom: 1px solid var(--border); }
+    summary { cursor: pointer; list-style: none; font-size: 14px; font-weight: 700; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { float: right; color: var(--accent-2); content: "+"; font-size: 19px; line-height: 1; }
+    details[open] summary::after { content: "−"; }
+    details p { max-width: 690px; margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+
+    .final-cta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin: 72px 0 70px;
+      padding: 35px 38px;
+      border: 1px solid rgba(145, 130, 255, .28);
+      border-radius: 18px;
+      background: radial-gradient(circle at 90% 10%, rgba(145, 130, 255, .18), transparent 23rem), #121622;
+    }
+    .final-cta h2 { margin: 0 0 7px; font-size: 27px; }
+    .final-cta p { margin: 0; color: var(--muted); font-size: 13px; }
+    footer { padding: 24px 0 35px; border-top: 1px solid rgba(154, 165, 185, .12); color: #77839a; font-size: 11px; }
+    .footer-inner { display: flex; justify-content: space-between; gap: 20px; }
+    .footer-links { display: flex; gap: 19px; }
+    .footer-links a:hover { color: var(--text); }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 48px; padding-top: 72px; }
+      .hero-copy { max-width: 650px; }
+      .product-window { width: min(650px, 100%); margin: 0 auto; transform: none; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .wrap { width: min(100% - 30px, 540px); }
+      .nav { min-height: 70px; }
+      .nav-links { gap: 12px; }
+      .nav-links a:not(.nav-cta) { display: none; }
+      .hero { padding: 58px 0 54px; }
+      h1 { font-size: clamp(41px, 13vw, 58px); }
+      .hero-copy { font-size: 15px; }
+      .product-window { padding: 9px; }
+      .mock-app { min-height: auto; }
+      .mock-content { padding: 17px 14px; }
+      .mock-stats { gap: 6px; }
+      .stat { padding: 9px; }
+      .feature-grid, .workflow { grid-template-columns: 1fr; }
+      .feature { min-height: auto; }
+      .trust-row { gap: 15px 22px; padding-bottom: 35px; }
+      .section { padding: 50px 0; }
+      .final-cta { align-items: flex-start; flex-direction: column; padding: 27px 23px; }
+      .footer-inner { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav" aria-label="Main navigation">
+      <a class="brand" href="#top" aria-label="ContextVault home">
+        <span class="brand-mark">C</span>
+        <span>ContextVault</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#faq">FAQ</a>
+        <a class="nav-cta" href="https://github.com/ahmedfayedesmail-ui/contextvault">Get Started ↗</a>
+      </div>
+    </nav>
+
+    <main id="top">
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Local-first developer memory</span>
+          <h1>Your codebase.<br><span>Remembered.</span></h1>
+          <p class="hero-copy">Stop digging through folders and repeating context. ContextVault indexes your project locally and gives your AI tools a searchable memory of the code that matters.</p>
+          <div class="hero-actions">
+            <a class="button" href="https://github.com/ahmedfayedesmail-ui/contextvault">Get Started on GitHub ↗</a>
+            <a class="button secondary" href="#features">Explore features</a>
+          </div>
+          <p class="microcopy">Built for Windows 11 · Powered by local Ollama · No hosted embedding API required</p>
+        </div>
+
+        <div class="product-window" role="img" aria-label="Preview of the ContextVault local project search dashboard">
+          <div class="window-bar">
+            <span class="window-dots"><i></i><i></i><i></i></span>
+            <span class="window-title">ContextVault · Project Memory</span>
+            <span class="window-status">● LOCAL</span>
+          </div>
+          <div class="mock-app">
+            <div class="mock-top">
+              <span class="mock-icon">C</span>
+              <span class="mock-name">ContextVault</span>
+              <span class="mock-label">Local workspace</span>
+            </div>
+            <div class="mock-content">
+              <h2 class="mock-heading">Search your project context.</h2>
+              <p class="mock-sub">Find relevant code and knowledge across your indexed project.</p>
+              <div class="mock-stats">
+                <div class="stat"><small>Files indexed</small><strong>248</strong></div>
+                <div class="stat"><small>Code chunks</small><strong>1,426</strong></div>
+                <div class="stat"><small>Runtime</small><strong>Local</strong></div>
+              </div>
+              <div class="mock-search"><span class="search-glyph">⌕</span><span>Where is user authentication validated?</span></div>
+              <div class="result">
+                <div class="result-head"><span>src / auth / middleware.ts</span><span class="result-match">MATCH 96.8%</span></div>
+                <div class="code-line"><span class="purple">export async function</span> validateSession(request) {</div>
+                <div class="code-line">  <span class="green">const session</span> = await readSession(request);</div>
+                <div class="code-line">  return verifyUser(session.userId);</div>
+              </div>
+              <div class="result">
+                <div class="result-head"><span>src / api / routes.ts</span><span class="result-match">MATCH 91.2%</span></div>
+                <div class="code-line"><span class="purple">router.post</span>("/login", validateCredentials);</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="trust-row" aria-label="Product highlights">
+        <span class="trust-item"><i class="trust-dot"></i><strong>Local-first by design</strong></span>
+        <span class="trust-item"><i class="trust-dot"></i>Works with Cursor & Claude Desktop</span>
+        <span class="trust-item"><i class="trust-dot"></i>Semantic code search</span>
+        <span class="trust-item"><i class="trust-dot"></i>Your files stay on your machine</span>
+      </div>
+
+      <section class="section" id="features">
+        <div class="section-heading">
+          <span class="section-kicker">A better way to keep context</span>
+          <h2>Less searching. More building.</h2>
+          <p>ContextVault turns your local project into searchable context, ready when you or your AI coding tools need it.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature">
+            <span class="feature-icon">⌂</span>
+            <h3>Local-first</h3>
+            <p>Indexing, embeddings, and search run on your machine through local Ollama. Your project does not need a hosted embedding service.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">⌘</span>
+            <h3>Works with AI tools</h3>
+            <p>Connect through the Model Context Protocol and expose project search and indexing tools to compatible clients such as Cursor and Claude Desktop.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">↗</span>
+            <h3>Fast to find</h3>
+            <p>Semantic search ranks the most relevant code chunks, so you can move from a question to the right part of your codebase faster.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">◈</span>
+            <h3>Private by design</h3>
+            <p>Project files and embeddings stay in your local ContextVault database and Ollama process. No automatic source-code upload to hosted embedding APIs.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="how-it-works">
+        <div class="section-heading">
+          <span class="section-kicker">Get started in minutes</span>
+          <h2>Your project memory, in three steps.</h2>
+          <p>Install once, index a project, then search your code from the web interface or an MCP-compatible desktop client.</p>
+        </div>
+        <div class="workflow">
+          <article class="step">
+            <h3>Install ContextVault</h3>
+            <p>Download the repository and run the Windows installer. It prepares the supported Node.js runtime, Ollama, and project dependencies.</p>
+          </article>
+          <article class="step">
+            <h3>Index your project</h3>
+            <p>Enter a local project folder in the onboarding panel. ContextVault scans supported files and creates embeddings locally.</p>
+          </article>
+          <article class="step">
+            <h3>Search and stay current</h3>
+            <p>Ask natural-language questions about your code. Live monitoring adds new and changed files to your project index.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="faq">
+        <div class="section-heading">
+          <span class="section-kicker">Questions, answered</span>
+          <h2>Frequently asked questions</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Does ContextVault upload my source code?</summary>
+            <p>ContextVault performs project scanning, chunking, embedding generation, and search locally with Ollama. It does not automatically send project source files to a hosted embedding API. When you use an AI desktop client, that client receives the tool results you request.</p>
+          </details>
+          <details>
+            <summary>Which tools can connect to ContextVault?</summary>
+            <p>ContextVault exposes an MCP server with project indexing and semantic search tools. It can be configured with compatible MCP clients, including Claude Desktop and Cursor.</p>
+          </details>
+          <details>
+            <summary>What do I need before using it?</summary>
+            <p>The Windows installer prepares Node.js 22 and Ollama. The first launch downloads the nomic-embed-text embedding model if it is not already available.</p>
+          </details>
+          <details>
+            <summary>Can ContextVault keep its index up to date?</summary>
+            <p>Yes. After you index a project, the live watcher monitors file additions and changes and updates the local index.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <div>
+          <h2>Give your codebase a memory.</h2>
+          <p>Start with ContextVault and keep project context close to the code.</p>
+        </div>
+        <a class="button" href="https://github.com/ahmedfayedesmail-ui/contextvault">Get ContextVault ↗</a>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <span>© 2026 ContextVault. Local-first developer memory.</span>
+        <div class="footer-links">
+          <a href="https://github.com/ahmedfayedesmail-ui/contextvault">GitHub</a>
+          <a href="https://github.com/ahmedfayedesmail-ui/contextvault/blob/main/README.md">Documentation</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
