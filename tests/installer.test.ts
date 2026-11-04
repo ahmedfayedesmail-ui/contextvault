@@ -24,13 +24,31 @@ describe('cross-platform distribution files', () => {
     expect(existsSync(path.join(projectRoot, fileName))).toBe(true);
   });
 
-  it('refreshes the current Windows process PATH and installs Ollama', () => {
+  it('discovers supported Node.js versions by absolute path without PATH lookup', () => {
     const installer = readFileSync(path.join(projectRoot, 'install-contextvault.ps1'), 'utf8');
-    expect(installer).toContain('$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")');
+    expect(installer).toContain('function Get-NodeCandidatePaths');
+    expect(installer).toContain('function Get-SupportedNodeInfo');
+    expect(installer).toContain('& $Candidate --version');
+    expect(installer).toContain("if ($Version -ge [version]'22.13.0')");
+    expect(installer).not.toContain('Get-Command node');
+    expect(installer).not.toContain('$env:Path');
+    expect(installer).toContain("Join-Path $NodeHome 'npm.cmd'");
+  });
+
+  it('uses absolute Ollama executable paths and installs Ollama silently', () => {
+    const installer = readFileSync(path.join(projectRoot, 'install-contextvault.ps1'), 'utf8');
     expect(installer).toContain('winget.exe');
     expect(installer).toContain('install --id Ollama.Ollama -e --silent');
+    expect(installer).toContain('Get-OllamaExe');
     expect(installer).toContain('nomic-embed-text');
     expect(installer).toContain('Get-AuthenticodeSignature');
+  });
+
+  it('matches the supported Node.js engine range', () => {
+    const packageJson = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8')) as {
+      engines: { node: string };
+    };
+    expect(packageJson.engines.node).toBe('>=22.13.0');
   });
 
   it('keeps the Windows launcher simple and opens the local browser', () => {

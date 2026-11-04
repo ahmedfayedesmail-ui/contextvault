@@ -2,6 +2,13 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Windows Node.js Hotfix
+
+- Replaced PowerShell command discovery with direct absolute-path discovery and execution of `node.exe`, including standard MSI, registry, NVM, FNM, Volta, Scoop, and ContextVault-managed runtime locations.
+- Reused existing Node.js 22.13.0+ installations, including Node.js 23 and 24, before considering the portable fallback runtime.
+- Executed `npm.cmd` and the npm CLI from the selected Node.js installation by absolute path.
+- Added regression tests that reject PATH-based Node.js discovery.
+
 ## Cross-Platform Installer Hardening
 
 - Rebuilt the Windows installer PATH refresh so it reconstructs the current PowerShell environment directly from the persisted Machine and User PATH values immediately after Node.js setup.
