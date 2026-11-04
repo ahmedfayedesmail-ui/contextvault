@@ -505,7 +505,7 @@ apiRouter.post("/watch", async (req, res) => {
       validation.data.rootPath
     );
 
-    startLiveWatcher(rootPath);
+    await startLiveWatcher(rootPath);
 
     return res.json({
       success: true,

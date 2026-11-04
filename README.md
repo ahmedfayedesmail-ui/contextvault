@@ -87,7 +87,7 @@ Open http://localhost:3737. The health endpoint is available at http://localhost
 1. In the **Get started with ContextVault** panel, enter the full path to a project folder on your computer.
 2. Select **Index Project**.
 3. ContextVault scans the folder, creates embeddings through local Ollama, and stores the indexed content in its SQLite database.
-4. After indexing completes, ContextVault starts live monitoring for that project. New and changed files are added to the index automatically.
+4. After indexing completes, ContextVault starts live monitoring for that project. New and changed files are added to the index automatically. When you index another project, monitoring switches safely: the previous watcher closes and its queued updates finish before the new project is watched.
 5. Ask a natural-language question in the search box to find relevant code.
 
 Files and folders excluded by the scanner's ignore rules are not indexed.

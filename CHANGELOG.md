@@ -2,6 +2,13 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Session 12 — Reliable Project Watcher Switching
+
+- Serialized watcher start and stop operations so concurrent requests cannot leave monitoring attached to the wrong project.
+- Starting a watcher for a different project now closes the previous watcher and waits for its queued file updates to finish before monitoring the new project.
+- Repeated watch requests for the same normalized project are treated as no-ops; the API waits for watcher startup to complete.
+- Added regression tests for project switching, same-project idempotency, and draining pending updates.
+
 ## Session 11 — Settings, Licensing UI, and MCP Setup
 
 - Added a Settings modal with local Free/Pro selection and clear messaging that plan selection does not verify payment or enable paid functionality.
@@ -68,7 +75,7 @@ All notable ContextVault changes are documented here by development session.
 
 - [ ] Add integration tests for installer scripts on Windows 10/11, macOS, and Linux machines.
 - [ ] Add Docker build and first-start smoke tests.
-- [ ] Add stopCurrentWatcher() and call it before starting a watcher for a different project, closing the previous watcher so project switching does not leave monitoring attached only to the first project.
+- [x] Add stopCurrentWatcher() and close the previous watcher before starting a different project, draining queued updates to prevent project-switching gaps.
 
 ## Cross-Platform Distribution
 
