@@ -19,12 +19,11 @@ if ! command -v brew >/dev/null 2>&1; then
   fi
 fi
 
-echo "Installing Node.js 22 and the official Ollama app..."
-brew install node@22
-brew install --cask ollama-app
+echo "Installing Node.js 22 and Ollama..."
+brew install node@22 ollama
 NODE_BIN="$(brew --prefix node@22)/bin"
-BREW_BIN="$(brew --prefix)/bin"
-export PATH="$NODE_BIN:$BREW_BIN:$PATH"
+OLLAMA_BIN="$(brew --prefix ollama)/bin"
+export PATH="$NODE_BIN:$OLLAMA_BIN:$PATH"
 
 NODE_VERSION="$(node --version)"
 NODE_MINOR="$(node -p 'Number(process.versions.node.split(".")[1])')"
@@ -33,7 +32,8 @@ if [[ ! "$NODE_VERSION" =~ ^v22\. ]] || (( NODE_MINOR < 13 )); then
   exit 1
 fi
 
-open -a Ollama
+echo "Starting Ollama service..."
+brew services start ollama
 OLLAMA_READY=0
 for _ in $(seq 1 90); do
   if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
@@ -43,7 +43,7 @@ for _ in $(seq 1 90); do
   sleep 1
 done
 if [[ "$OLLAMA_READY" != "1" ]]; then
-  echo "Ollama did not start. Open the Ollama app and retry."
+  echo "Ollama did not start. Check the service and retry."
   exit 1
 fi
 
@@ -57,7 +57,7 @@ mkdir -p "$HOME/Desktop"
 LAUNCHER="$HOME/Desktop/ContextVault.command"
 cat > "$LAUNCHER" <<EOF
 #!/bin/bash
-export PATH="$NODE_BIN:$BREW_BIN:\\$PATH"
+export PATH="$NODE_BIN:$OLLAMA_BIN:\\$PATH"
 cd "$PROJECT_ROOT"
 exec "$PROJECT_ROOT/start-contextvault.sh"
 EOF

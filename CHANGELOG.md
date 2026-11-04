@@ -2,30 +2,36 @@
 
 All notable ContextVault changes are documented here by development session.
 
-## Cross-Platform Distribution
+## Cross-Platform Installer Hardening
 
-- Reworked the Windows installer to install and verify Node.js 22, download and validate the signed official Ollama Windows installer, install Ollama silently, pull nomic-embed-text, and install dependencies without showing installer windows.
-- Added a hidden Windows Desktop launcher that starts ContextVault and opens the local dashboard.
-- Simplified the Windows batch launcher to start the server, wait three seconds, and open the browser.
-- Added a macOS installer using Homebrew for Node.js 22 and Ollama, plus a Desktop launcher.
-- Added a Linux installer for APT, DNF, and YUM systems, using the official Ollama Linux installer and creating an application shortcut.
-- Added a shared macOS/Linux launcher.
-- Added a Docker image based on node:22-slim with the Ollama runtime and a Compose configuration with persistent SQLite and model volumes.
-- Expanded README installation guidance for Windows, macOS, Linux, and Docker.
+- Rebuilt the Windows installer PATH refresh so it reconstructs the current PowerShell environment directly from the persisted Machine and User PATH values immediately after Node.js setup.
+- Added silent Ollama installation through winget with exact package ID, and a signed official-installer fallback for Windows environments without winget.
+- Added background Ollama startup, model verification and download, and hidden npm dependency installation.
+- Replaced the Windows Desktop shortcut with a hidden launcher that starts Ollama and the ContextVault server, waits for the local health endpoint, and opens the browser.
+- Simplified start-contextvault.bat to start the local server, wait three seconds, and open the web interface.
+- Updated macOS and Linux native installers and shared launcher.
+- Updated Docker image and Compose setup to run Node.js and Ollama together with persistent model and database volumes.
+- Expanded installation tests and the Cross-Platform Installation README section.
 
 ## Planned for v0.2
 
-- [ ] Add integration tests for installer scripts on real Windows, macOS, and Linux machines.
+- [ ] Add integration tests for installer scripts on Windows 10/11, macOS, and Linux machines.
 - [ ] Add Docker build and first-start smoke tests.
 - [ ] Add stopCurrentWatcher() and call it before starting a watcher for a different project, closing the previous watcher so project switching does not leave monitoring attached only to the first project.
 
+## Cross-Platform Distribution
+
+- Reworked the Windows installer to install and verify Node.js 22, install Ollama silently, pull nomic-embed-text, and install dependencies.
+- Added a hidden Windows Desktop launcher that starts ContextVault and opens the local dashboard.
+- Added macOS and Linux installers and shared shell launcher.
+- Added a Docker image and Compose configuration with persistent SQLite and model volumes.
+- Expanded README installation guidance for Windows, macOS, Linux, and Docker.
+
 ## Session 8 — Windows Distribution and Productization
 
-- Added a double-click Windows batch launcher that checks Node.js and Ollama, starts the local Ollama service when needed, pulls nomic-embed-text when missing, installs npm dependencies on first launch, and opens the web application.
-- Added a PowerShell launcher with prerequisite checks, colored status output, and error handling.
-- Added a first-run installer that resolves the latest stable Node.js 22.x release from the official release index, verifies its SHA-256 checksum, installs npm dependencies, and creates a Desktop launcher and shortcut.
+- Added a double-click Windows batch launcher and PowerShell installer.
 - Added a standalone responsive dark-mode landing page under landing/, separate from the application assets in public/.
-- Added installer asset tests for the Windows scripts and landing page.
+- Added installer asset tests for Windows scripts and the landing page.
 
 ## Session 7 — Product Onboarding
 

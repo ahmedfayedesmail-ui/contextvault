@@ -4,68 +4,58 @@ ContextVault is a local-first developer context and memory system. It indexes a 
 
 ## Cross-Platform Installation
 
-Choose the installer for your operating system. Native installers prepare Node.js, Ollama, the nomic-embed-text model, project dependencies, and a launcher for the local dashboard.
+Choose one installer for your environment. Native installers prepare Node.js, Ollama, the nomic-embed-text model, project dependencies, and a launcher for the local dashboard.
 
 ### Windows 10 / 11
 
 1. Download and extract the ContextVault repository ZIP.
-2. Open the extracted folder and run install-contextvault.ps1 with PowerShell.
-3. The installer verifies and installs the supported Node.js 22 runtime, downloads and verifies the signed official Ollama installer, installs Ollama silently, downloads nomic-embed-text, installs npm dependencies, and creates a ContextVault Desktop shortcut.
-4. Double-click the ContextVault shortcut. It starts the server hidden and opens http://localhost:3737.
+2. Right-click install-contextvault.ps1 and choose **Run with PowerShell**.
+3. The installer prepares Node.js 22, installs Ollama using winget (with a signed official-installer fallback when winget is unavailable), starts the local Ollama service, downloads nomic-embed-text, installs npm dependencies silently, and creates a ContextVault shortcut on your Desktop.
+4. Double-click the ContextVault shortcut whenever you want to open the application. It starts the local services and opens http://localhost:3737.
 
-Windows support follows the current Ollama Windows requirements: Windows 10 22H2 or newer, or Windows 11.
+The installer does not impose a Windows 11 build check. Ollama's current Windows support requirement is Windows 10 22H2 or newer, or Windows 11. See the [official Ollama Windows requirements](https://docs.ollama.com/windows).
 
 ### macOS
 
 1. Download and extract the ContextVault repository.
 2. Double-click install-mac.command.
-3. The installer prepares Homebrew when missing, installs Node.js 22 and the official Ollama app, starts Ollama, downloads nomic-embed-text, installs npm dependencies, and creates ContextVault.command on your Desktop.
-4. Double-click ContextVault.command whenever you want to launch the dashboard.
+3. The installer uses Homebrew to install Node.js 22 and Ollama, starts the Ollama service, downloads nomic-embed-text, installs npm dependencies, and creates ContextVault.command on your Desktop.
+4. Double-click ContextVault.command to start ContextVault and open the browser.
 
-Ollama for macOS currently requires macOS 14 Sonoma or newer. Homebrew may request your macOS account password when preparing developer tools or installing dependencies.
+Ollama's current macOS requirement is macOS 14 Sonoma or newer. Homebrew may request your macOS account password during its first setup.
 
 ### Linux
 
 1. Download and extract the ContextVault repository.
-2. Run install-linux.sh from the extracted folder. If your file manager does not offer a Run option, open a terminal in the folder and run: chmod +x install-linux.sh && ./install-linux.sh.
-3. The installer supports APT, DNF, and YUM. It installs Node.js 22, installs Ollama using the official Linux installation script, starts Ollama, downloads nomic-embed-text, and installs npm dependencies.
-4. It creates a ContextVault application shortcut in your Applications menu and, when available, on your Desktop.
+2. Run install-linux.sh from the extracted folder. If your file manager does not offer a Run option, run chmod +x install-linux.sh && ./install-linux.sh once.
+3. The installer supports APT and DNF, installs Node.js 22 and Ollama using the official Linux installer, downloads nomic-embed-text, installs npm dependencies, and creates a ContextVault application shortcut.
+4. Launch ContextVault from the Applications menu.
 
 The Linux installer may request administrator approval for operating-system packages and Ollama.
 
-### Docker — same setup on Windows, macOS, and Linux
+### Docker — Windows, macOS, and Linux
 
-Docker is the portable route when you do not want Node.js or Ollama installed directly on the host computer. Docker Engine or Docker Desktop with the Compose plugin must already be installed and running.
+Use Docker when you do not want Node.js or Ollama installed directly on your computer. Docker Engine or Docker Desktop with the Docker Compose plugin must be installed and running.
 
 From the repository folder, run:
 
 ~~~bash
-docker compose up -d --build
+docker compose up --build
 ~~~
 
-Then open:
+Open http://localhost:3737. The container includes Node.js and Ollama, pulls nomic-embed-text on first startup, and stores the SQLite database and model files in persistent Docker volumes. No host Node.js or Ollama installation is required.
 
-http://localhost:3737
-
-The container runs Node.js and Ollama together, downloads nomic-embed-text on first startup, and stores the database and model files in persistent Docker volumes. The default Docker configuration uses CPU execution; GPU acceleration depends on the host, drivers, and Docker runtime configuration.
-
-To stop ContextVault:
-
-~~~bash
-docker compose down
-~~~
-
-Your indexed database and downloaded model remain in named Docker volumes. To remove them as well, run docker compose down -v.
+To stop the application, press Ctrl+C, or run docker compose down from another terminal. Data remains in the named volumes. To remove the data as well, run docker compose down -v.
 
 ## Requirements
 
 - Windows: Windows 10 22H2 or newer, or Windows 11.
-- macOS: macOS 14 Sonoma or newer for the current Ollama macOS distribution.
-- Linux: A supported 64-bit Linux distribution with APT, DNF, or YUM, plus sudo access.
+- macOS: macOS 14 Sonoma or newer for the current Ollama distribution.
+- Linux: a supported 64-bit APT- or DNF-based distribution, plus sudo access.
 - Docker: Docker Engine or Docker Desktop with Docker Compose v2.
-- Internet connection for initial installation and model download.
+- Internet access for first-time installation and downloading the embedding model.
 
-Node.js 22.13 or newer in the Node.js 22 line is required for native installations. The native installers prepare it automatically.
+Native installers prepare Node.js 22.13 or newer in the Node.js 22 release line automatically.
 
 ## Manual Development Setup
 
@@ -90,14 +80,12 @@ Start the development server:
 npm run dev
 ~~~
 
-Open http://localhost:3737.
-
-The health endpoint is available at http://localhost:3737/health.
+Open http://localhost:3737. The health endpoint is available at http://localhost:3737/health.
 
 ## Index Your First Project
 
-1. In the Get started with ContextVault panel, enter the full path to a project folder on your computer.
-2. Select Index Project.
+1. In the **Get started with ContextVault** panel, enter the full path to a project folder on your computer.
+2. Select **Index Project**.
 3. ContextVault scans the folder, creates embeddings through local Ollama, and stores the indexed content in its SQLite database.
 4. After indexing completes, ContextVault starts live monitoring for that project. New and changed files are added to the index automatically.
 5. Ask a natural-language question in the search box to find relevant code.
@@ -130,9 +118,7 @@ See README_MCP.md for MCP desktop client configuration.
 
 ## Local Storage and Configuration
 
-The default SQLite database is created at:
-
-data/contextvault.db
+The default SQLite database is created at data/contextvault.db.
 
 Supported environment settings:
 
@@ -150,7 +136,7 @@ Project scanning, chunking, embedding generation, vector storage, and semantic s
 
 ## Landing Page
 
-The separate marketing page is available at landing/index.html. It is kept outside public/ so it can be deployed independently to GitHub Pages or Vercel.
+The separate marketing page is available at landing/index.html and can be deployed independently to GitHub Pages or Vercel.
 
 ## Project Version
 

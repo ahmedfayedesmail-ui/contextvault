@@ -6,12 +6,13 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-function Write-Info { param([string]$Message) Write-Host "[ContextVault] $Message" -ForegroundColor Green }
+function Write-Info {
+    param([string]$Message)
+    Write-Host "[ContextVault] $Message" -ForegroundColor Green
+}
 
 function Refresh-CurrentPath {
-    $MachinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    $UserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $env:Path = (@($MachinePath, $UserPath, $env:Path) -join ';')
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 }
 
 function Get-CompatibleNodeCommand {
@@ -29,19 +30,20 @@ function Get-CompatibleNodeCommand {
 function Install-Node22Runtime {
     $Architecture = $env:PROCESSOR_ARCHITECTURE
     if ($env:PROCESSOR_ARCHITEW6432) { $Architecture = $env:PROCESSOR_ARCHITEW6432 }
+
     switch ($Architecture.ToUpperInvariant()) {
         'AMD64' { $NodeArchitecture = 'x64' }
         'ARM64' { $NodeArchitecture = 'arm64' }
-        default { throw "Unsupported CPU architecture: $Architecture." }
+        default { throw "Unsupported Windows CPU architecture: $Architecture." }
     }
 
-    Write-Info 'Checking the latest supported Node.js 22 release...'
+    Write-Info 'Resolving the latest stable Node.js 22 release...'
     $Releases = Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json'
     $Release = $Releases |
         Where-Object { $_.version -match '^v22\.\d+\.\d+$' } |
         Sort-Object { [version]($_.version.TrimStart('v')) } -Descending |
         Select-Object -First 1
-    if (-not $Release) { throw 'Could not find a stable Node.js 22 release.' }
+    if (-not $Release) { throw 'No stable Node.js 22.x release was found.' }
 
     $NodeVersion = $Release.version.TrimStart('v')
     $ArchiveName = "node-v$NodeVersion-win-$NodeArchitecture.zip"
@@ -57,6 +59,7 @@ function Install-Node22Runtime {
         New-Item -ItemType Directory -Path $RuntimeRoot -Force | Out-Null
         $ArchivePath = Join-Path $env:TEMP $ArchiveName
         $ManifestPath = Join-Path $env:TEMP "node-v$NodeVersion-SHASUMS256.txt"
+
         Write-Info "Downloading Node.js $NodeVersion..."
         Invoke-WebRequest -Uri "https://nodejs.org/dist/v$NodeVersion/$ArchiveName" -OutFile $ArchivePath -UseBasicParsing
         Invoke-WebRequest -Uri "https://nodejs.org/dist/v$NodeVersion/SHASUMS256.txt" -OutFile $ManifestPath -UseBasicParsing
@@ -70,41 +73,85 @@ function Install-Node22Runtime {
         $ActualHash = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash.ToUpperInvariant()
         if ($ActualHash -ne $ExpectedHash) {
             Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
-            throw 'Node.js SHA-256 verification failed. The archive was rejected.'
+            throw 'Node.js SHA-256 verification failed. The downloaded archive was rejected.'
         }
 
         Expand-Archive -LiteralPath $ArchivePath -DestinationPath $RuntimeRoot -Force
         Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
     }
 
-    if (-not (Test-Path -LiteralPath $NodeExecutable)) { throw 'Node.js installation could not be verified.' }
+    if (-not (Test-Path -LiteralPath $NodeExecutable)) { throw "Node.js could not be verified at $NodeExecutable." }
 
-    $UserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $UserPath = [System.Environment]::GetEnvironmentVariable("Path","User")
     $PathEntries = @($UserPath -split ';' | Where-Object { $_ })
     if (-not ($PathEntries | Where-Object { $_.TrimEnd('\') -ieq $NodeHome.TrimEnd('\') })) {
-        [Environment]::SetEnvironmentVariable('Path', (@($PathEntries) + $NodeHome) -join ';', 'User')
+        [System.Environment]::SetEnvironmentVariable("Path", (@($PathEntries) + $NodeHome) -join ';', "User")
     }
 
-    # Refresh PATH immediately in this same PowerShell process.
-    Refresh-CurrentPath
-    if ($env:Path -notlike "*$NodeHome*") { $env:Path = "$NodeHome;$env:Path" }
+    # Required: rebuild PATH from persisted Machine and User environment values in this process.
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
     Get-ChildItem -LiteralPath $RuntimeRoot -Directory -Filter 'node-v22*-win-*' -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -ne $NodeHome } |
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-    Write-Info "Node.js $NodeVersion is installed."
+
+    Write-Info "Node.js $NodeVersion is installed and available in this session."
 }
 
 function Get-OllamaCommand {
     Refresh-CurrentPath
-    $Command = Get-Command ollama -CommandType Application -ErrorAction SilentlyContinue
+    $Command = Get-Command ollama.exe -CommandType Application -ErrorAction SilentlyContinue
     if ($Command) { return $Command }
-    $KnownPath = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'
-    if (Test-Path -LiteralPath $KnownPath) {
-        $env:Path = "$(Split-Path -Parent $KnownPath);$env:Path"
-        return Get-Command ollama -CommandType Application -ErrorAction SilentlyContinue
+
+    $Candidates = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Ollama\ollama.exe'),
+        (Join-Path $env:ProgramFiles 'Ollama\ollama.exe')
+    )
+    foreach ($Candidate in $Candidates) {
+        if ($Candidate -and (Test-Path -LiteralPath $Candidate)) {
+            $Directory = Split-Path -Parent $Candidate
+            $env:Path = "$Directory;$env:Path"
+            return Get-Command $Candidate -CommandType Application -ErrorAction SilentlyContinue
+        }
     }
     return $null
+}
+
+function Install-Ollama {
+    $Winget = Get-Command winget.exe -CommandType Application -ErrorAction SilentlyContinue
+
+    if ($Winget) {
+        Write-Info 'Installing Ollama with Windows Package Manager...'
+        & $Winget.Source install --id Ollama.Ollama -e --silent --accept-package-agreements --accept-source-agreements
+        $WingetExitCode = $LASTEXITCODE
+        if ($WingetExitCode -ne 0) {
+            Write-Host "winget returned exit code $WingetExitCode. Trying the signed official installer..." -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host 'winget is not available. Using the signed official Ollama installer as a fallback.' -ForegroundColor Yellow
+    }
+
+    Refresh-CurrentPath
+    if (Get-OllamaCommand) { return }
+
+    $InstallerPath = Join-Path $env:TEMP 'OllamaSetup.exe'
+    Write-Info 'Downloading the official Ollama Windows installer...'
+    Invoke-WebRequest -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile $InstallerPath -UseBasicParsing
+
+    $Signature = Get-AuthenticodeSignature -FilePath $InstallerPath
+    if ($Signature.Status -ne 'Valid' -or $Signature.SignerCertificate.Subject -notmatch 'Ollama') {
+        Remove-Item -LiteralPath $InstallerPath -Force -ErrorAction SilentlyContinue
+        throw 'The downloaded Ollama installer signature is invalid. The file was rejected.'
+    }
+
+    $Setup = Start-Process -FilePath $InstallerPath -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
+    Remove-Item -LiteralPath $InstallerPath -Force -ErrorAction SilentlyContinue
+    if ($Setup.ExitCode -ne 0) { throw "Ollama setup failed with exit code $($Setup.ExitCode)." }
+
+    Refresh-CurrentPath
+    if (-not (Get-OllamaCommand)) { throw 'Ollama setup finished, but its CLI could not be located.' }
 }
 
 function Test-OllamaApi {
@@ -115,7 +162,7 @@ function Test-OllamaApi {
     catch { return $false }
 }
 
-function Start-HiddenProcessAndWait {
+function Invoke-HiddenAndWait {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
         [Parameter(Mandatory = $true)][string]$Arguments,
@@ -129,95 +176,122 @@ function Start-HiddenProcessAndWait {
 try {
     $ProjectRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
     if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'package.json'))) {
-        throw 'Run this installer from the extracted ContextVault repository folder.'
+        throw 'Extract the complete ContextVault repository and run this installer from its root folder.'
     }
 
     Write-Info 'Preparing Node.js...'
     if (-not (Get-CompatibleNodeCommand)) { Install-Node22Runtime }
-    Refresh-CurrentPath
+
+    # Rebuild PATH even when Node.js was installed before this installer was started.
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     $NodeCommand = Get-CompatibleNodeCommand
-    if (-not $NodeCommand) { throw 'Node.js 22.13 or newer could not be located after installation.' }
+    if (-not $NodeCommand) {
+        $PortableRoot = Join-Path $env:LOCALAPPDATA 'ContextVault\runtime'
+        $PortableNode = Get-ChildItem -LiteralPath $PortableRoot -Directory -Filter 'node-v22*-win-*' -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'node.exe') } |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+        if ($PortableNode) {
+            $env:Path = "$($PortableNode.FullName);$env:Path"
+            $NodeCommand = Get-CompatibleNodeCommand
+        }
+    }
+    if (-not $NodeCommand) { throw 'Node.js 22.13 or newer could not be found after installation.' }
 
     $NodeDirectory = Split-Path -Parent $NodeCommand.Source
     $NpmCommand = Join-Path $NodeDirectory 'npm.cmd'
-    if (-not (Test-Path -LiteralPath $NpmCommand)) { throw 'npm.cmd was not found beside Node.js.' }
+    if (-not (Test-Path -LiteralPath $NpmCommand)) { throw 'npm.cmd was not found next to Node.js.' }
 
-    # Download and verify the official Ollama Windows installer.
+    Write-Info 'Preparing Ollama...'
+    if (-not (Get-OllamaCommand)) { Install-Ollama }
+
     $OllamaCommand = Get-OllamaCommand
-    if (-not $OllamaCommand) {
-        $InstallerPath = Join-Path $env:TEMP 'OllamaSetup.exe'
-        Write-Info 'Downloading the official Ollama installer...'
-        Invoke-WebRequest -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile $InstallerPath -UseBasicParsing
-
-        $Signature = Get-AuthenticodeSignature -FilePath $InstallerPath
-        if ($Signature.Status -ne 'Valid' -or $Signature.SignerCertificate.Subject -notmatch '(^|, )O=Ollama Inc\.(,|$)') {
-            Remove-Item -LiteralPath $InstallerPath -Force -ErrorAction SilentlyContinue
-            throw 'Ollama installer signature could not be verified. The installer was rejected.'
-        }
-
-        Write-Info 'Installing Ollama silently...'
-        # Use the silent Inno Setup flags from the official Ollama Windows installation script.
-        $OllamaSetup = Start-Process -FilePath $InstallerPath -ArgumentList '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES' -Wait -PassThru
-        if ($OllamaSetup.ExitCode -ne 0) { throw "Ollama setup failed (exit code $($OllamaSetup.ExitCode))." }
-        Remove-Item -LiteralPath $InstallerPath -Force -ErrorAction SilentlyContinue
-    }
-
-    Refresh-CurrentPath
-    $OllamaCommand = Get-OllamaCommand
-    if (-not $OllamaCommand) { throw 'Ollama installation completed but the CLI could not be located.' }
+    if (-not $OllamaCommand) { throw 'Ollama could not be located after installation.' }
     $OllamaDirectory = Split-Path -Parent $OllamaCommand.Source
 
-    # The Windows app normally starts its own service. Start "ollama serve" only if its API is down.
     if (-not (Test-OllamaApi)) {
-        Write-Info 'Starting the Ollama service...'
+        Write-Info 'Starting Ollama in the background...'
         Start-Process -FilePath $OllamaCommand.Source -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
         Start-Sleep -Seconds 3
+
         $OllamaReady = $false
-        for ($Attempt = 0; $Attempt -lt 60; $Attempt++) {
+        for ($Attempt = 0; $Attempt -lt 90; $Attempt++) {
             if (Test-OllamaApi) { $OllamaReady = $true; break }
             Start-Sleep -Seconds 1
         }
-        if (-not $OllamaReady) { throw 'Ollama did not become ready on localhost:11434.' }
+        if (-not $OllamaReady) { throw 'Ollama did not start on localhost:11434.' }
     }
 
-    Write-Info 'Downloading the nomic-embed-text model...'
-    Start-HiddenProcessAndWait -FilePath $OllamaCommand.Source -Arguments 'pull nomic-embed-text' -WorkingDirectory $ProjectRoot -FailureMessage 'Could not download nomic-embed-text'
+    Write-Info 'Checking the nomic-embed-text model...'
+    $ModelList = & $OllamaCommand.Source list 2>&1
+    if ($LASTEXITCODE -ne 0) { throw 'Ollama could not list its installed models.' }
+    if (($ModelList -join [Environment]::NewLine) -notmatch 'nomic-embed-text') {
+        Write-Info 'Downloading nomic-embed-text...'
+        & $OllamaCommand.Source pull nomic-embed-text
+        if ($LASTEXITCODE -ne 0) { throw 'The nomic-embed-text model download failed.' }
+    }
 
-    # Install npm dependencies in a hidden process and wait for completion.
-    Write-Info 'Installing ContextVault dependencies...'
-    $NpmArguments = '/d /c ""' + $NpmCommand + '" install"'
-    Start-HiddenProcessAndWait -FilePath $env:ComSpec -Arguments $NpmArguments -WorkingDirectory $ProjectRoot -FailureMessage 'npm install failed'
+    Write-Info 'Installing ContextVault npm dependencies in the background...'
+    Invoke-HiddenAndWait -FilePath $env:ComSpec -Arguments '/d /c npm install' -WorkingDirectory $ProjectRoot -FailureMessage 'npm install failed'
 
-    # Create a hidden desktop launcher that starts ContextVault and opens the browser.
-    $DesktopPath = [Environment]::GetFolderPath('Desktop')
-    if (-not (Test-Path -LiteralPath $DesktopPath)) { New-Item -ItemType Directory -Path $DesktopPath -Force | Out-Null }
+    $LauncherDirectory = Join-Path $env:LOCALAPPDATA 'ContextVault'
+    New-Item -ItemType Directory -Path $LauncherDirectory -Force | Out-Null
+    $LauncherScript = Join-Path $LauncherDirectory 'ContextVault-Launcher.vbs'
 
-    $LauncherScript = Join-Path $ProjectRoot 'ContextVault-Launcher.vbs'
     $LauncherContent = @'
 Set shell = CreateObject("WScript.Shell")
 shell.Environment("PROCESS")("PATH") = "__NODE_DIR__;__OLLAMA_DIR__;" & shell.Environment("PROCESS")("PATH")
-Set http = CreateObject("MSXML2.XMLHTTP")
-alreadyRunning = False
-On Error Resume Next
-http.Open "GET", "http://localhost:3737/health", False
-http.Send
-If Err.Number = 0 Then
-    If http.Status = 200 Then alreadyRunning = True
+shell.CurrentDirectory = "__PROJECT_ROOT__"
+
+Function HttpReady(url)
+    On Error Resume Next
+    Set request = CreateObject("WinHttp.WinHttpRequest.5.1")
+    request.SetTimeouts 500, 500, 1000, 1000
+    request.Open "GET", url, False
+    request.Send
+    HttpReady = (Err.Number = 0 And request.Status = 200)
+    Err.Clear
+    On Error GoTo 0
+End Function
+
+If Not HttpReady("http://localhost:11434/api/tags") Then
+    shell.Run Chr(34) & "__OLLAMA_EXE__" & Chr(34) & " serve", 0, False
+    For i = 1 To 60
+        WScript.Sleep 1000
+        If HttpReady("http://localhost:11434/api/tags") Then Exit For
+    Next
 End If
-Err.Clear
-On Error GoTo 0
-If Not alreadyRunning Then
-    command = "cmd.exe /d /c cd /d " & Chr(34) & "__PROJECT_ROOT__" & Chr(34) & " && npm run dev"
-    shell.Run command, 0, False
+
+If Not HttpReady("http://localhost:11434/api/tags") Then
+    MsgBox "Ollama could not start. Please restart Windows and try again.", vbExclamation, "ContextVault"
+    WScript.Quit 1
 End If
-WScript.Sleep 3000
-shell.Run "http://localhost:3737", 1, False
+
+If Not HttpReady("http://localhost:3737/health") Then
+    shell.Run "cmd.exe /d /c npm run dev", 0, False
+    For i = 1 To 45
+        WScript.Sleep 1000
+        If HttpReady("http://localhost:3737/health") Then Exit For
+    Next
+End If
+
+If HttpReady("http://localhost:3737/health") Then
+    shell.Run "http://localhost:3737", 1, False
+Else
+    MsgBox "ContextVault could not start. Restart Windows and try again.", vbExclamation, "ContextVault"
+End If
 '@
-    $LauncherContent = $LauncherContent.Replace('__NODE_DIR__', $NodeDirectory).Replace('__OLLAMA_DIR__', $OllamaDirectory).Replace('__PROJECT_ROOT__', $ProjectRoot)
+
+    $LauncherContent = $LauncherContent.Replace('__NODE_DIR__', $NodeDirectory).Replace('__OLLAMA_DIR__', $OllamaDirectory).Replace('__OLLAMA_EXE__', $OllamaCommand.Source).Replace('__PROJECT_ROOT__', $ProjectRoot)
     Set-Content -LiteralPath $LauncherScript -Value $LauncherContent -Encoding ASCII
 
-    $WScript = Join-Path $env:WINDIR 'System32\wscript.exe'
+    $DesktopPath = [Environment]::GetFolderPath('Desktop')
+    if (-not (Test-Path -LiteralPath $DesktopPath)) {
+        New-Item -ItemType Directory -Path $DesktopPath -Force | Out-Null
+    }
+
     $ShortcutPath = Join-Path $DesktopPath 'ContextVault.lnk'
+    $WScript = Join-Path $env:WINDIR 'System32\wscript.exe'
     $Shell = New-Object -ComObject WScript.Shell
     $Shortcut = $Shell.CreateShortcut($ShortcutPath)
     $Shortcut.TargetPath = $WScript
@@ -227,7 +301,7 @@ shell.Run "http://localhost:3737", 1, False
     $Shortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll, 13"
     $Shortcut.Save()
 
-    Write-Info 'ContextVault is installed. Starting it and opening the browser...'
+    Write-Info 'Installation completed. Starting ContextVault and opening the browser...'
     Start-Process -FilePath $WScript -ArgumentList ('"' + $LauncherScript + '"')
     Write-Info "Desktop shortcut created: $ShortcutPath"
 }

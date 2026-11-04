@@ -10,12 +10,19 @@ if ! command -v ollama >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ "$(uname -s)" == "Darwin" ]] && command -v open >/dev/null 2>&1; then
-  open -ga Ollama >/dev/null 2>&1 || true
-fi
-
 if ! curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
-  nohup ollama serve >"$LOG_DIR/ollama.log" 2>&1 </dev/null &
+  if command -v brew >/dev/null 2>&1; then
+    brew services start ollama >/dev/null 2>&1 || true
+  fi
+  for _ in $(seq 1 8); do
+    if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+  if ! curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+    nohup ollama serve >"$LOG_DIR/ollama.log" 2>&1 </dev/null &
+  fi
 fi
 
 OLLAMA_READY=0
@@ -45,11 +52,24 @@ if ! curl -fsS http://127.0.0.1:3737/health >/dev/null 2>&1; then
   )
 fi
 
-sleep 3
+APP_READY=0
+for _ in $(seq 1 45); do
+  if curl -fsS http://127.0.0.1:3737/health >/dev/null 2>&1; then
+    APP_READY=1
+    break
+  fi
+  sleep 1
+done
+
+if [[ "$APP_READY" != "1" ]]; then
+  echo "ContextVault did not start. See $LOG_DIR/server.log." >&2
+  exit 1
+fi
+
 if command -v open >/dev/null 2>&1; then
   open http://localhost:3737
 elif command -v xdg-open >/dev/null 2>&1; then
   xdg-open http://localhost:3737 >/dev/null 2>&1 &
 else
-  echo "ContextVault is available at http://localhost:3737"
+  echo "ContextVault is ready at http://localhost:3737"
 fi

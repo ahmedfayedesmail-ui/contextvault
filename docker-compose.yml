@@ -5,10 +5,12 @@ services:
       dockerfile: Dockerfile
     container_name: contextvault
     restart: unless-stopped
+    init: true
     ports:
-      - "3737:3737"
+      - "127.0.0.1:3737:3737"
     environment:
       PORT: "3737"
+      OLLAMA_HOST: "127.0.0.1:11434"
       OLLAMA_URL: "http://127.0.0.1:11434"
       DATABASE_PATH: "/app/data/contextvault.db"
       NODE_OPTIONS: "--experimental-sqlite"

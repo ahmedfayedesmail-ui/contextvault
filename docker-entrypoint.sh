@@ -4,11 +4,18 @@ set -eu
 echo "[ContextVault] Starting Ollama..."
 ollama serve >/tmp/contextvault-ollama.log 2>&1 &
 OLLAMA_PID=$!
+APP_PID=""
 
 cleanup() {
+  if [ -n "$APP_PID" ]; then
+    kill "$APP_PID" 2>/dev/null || true
+  fi
   kill "$OLLAMA_PID" 2>/dev/null || true
+  wait "$OLLAMA_PID" 2>/dev/null || true
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 
 OLLAMA_READY=0
 for attempt in $(seq 1 120); do
@@ -20,7 +27,7 @@ for attempt in $(seq 1 120); do
 done
 
 if [ "$OLLAMA_READY" != "1" ]; then
-  echo "[ContextVault] Ollama failed to start. See /tmp/contextvault-ollama.log." >&2
+  echo "[ContextVault] Ollama did not start. Check /tmp/contextvault-ollama.log." >&2
   exit 1
 fi
 
@@ -30,4 +37,6 @@ if ! ollama list 2>/dev/null | grep -q 'nomic-embed-text'; then
 fi
 
 echo "[ContextVault] Starting the application..."
-exec node --experimental-sqlite dist/server.js
+node --experimental-sqlite dist/server.js &
+APP_PID=$!
+wait "$APP_PID"
