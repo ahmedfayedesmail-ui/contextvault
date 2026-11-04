@@ -42,7 +42,14 @@ describe('cross-platform distribution files', () => {
     expect(installer).toContain('Get-OllamaExe');
     expect(installer).toContain('$OllamaExeResults = @(Get-OllamaExe | Select-Object -First 1)');
     expect(installer).toContain('$OllamaExe = [string]$OllamaExeResults[0]');
-    expect(installer).toContain('Start-Process -FilePath ([string]$OllamaExe)');
+    expect(installer).toContain('$OllamaExePath = "$env:LOCALAPPDATA\\Programs\\Ollama\\ollama.exe"');
+    expect(installer).toContain("if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {");
+    expect(installer).toContain("$OllamaExePath = 'ollama'");
+    expect(installer).toContain('Start-Process -FilePath $OllamaExePath -ArgumentList "serve" -WindowStyle Hidden');
+    expect(installer).toContain('Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden -ErrorAction SilentlyContinue');
+    expect(installer).toContain('$ModelList = & $OllamaExePath list 2>&1');
+    expect(installer).toContain('& $OllamaExePath pull nomic-embed-text');
+    expect(installer).toContain("Replace('__OLLAMA_EXE__', $OllamaExePath)");
     expect(installer).toContain('nomic-embed-text');
     expect(installer).toContain('Get-AuthenticodeSignature');
   });

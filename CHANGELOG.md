@@ -2,6 +2,13 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Ollama Start-Process Hotfix
+
+- Replaced the Windows Ollama background launch with an explicit per-user executable path and a scalar `ollama` command fallback.
+- Resolved the `ollama` command fallback before checking API readiness, so the same scalar path works whether Ollama was already running or must be started.
+- Reused the same `$OllamaExePath` variable for Ollama model listing, `nomic-embed-text` download, and the desktop launcher.
+- Added regression assertions covering both launch paths and consistent executable reuse.
+
 ## Ollama Executable Path Hotfix
 
 - Normalized Ollama discovery and installer results to the first absolute executable path as a single PowerShell String.
