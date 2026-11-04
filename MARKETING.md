@@ -36,7 +36,7 @@ The goal is not to replace a coding model. It is to give it a focused way to ret
 
 I'd appreciate feedback from people using local models: what would make a local project-memory workflow genuinely useful in your setup?
 
-**Links:** [Live landing page — add after deployment] · [Public download/repository — add after publication]
+**Links:** https://ahmedfayedesmail-ui.github.io/contextvault/ · [Public download/repository — add after publication]
 
 *Disclosure: I'm the developer of ContextVault. Sharing it for technical feedback.*
 
@@ -59,7 +59,7 @@ The project indexing and embeddings stay in the local ContextVault/Ollama workfl
 
 I'm looking for practical feedback from Cursor users: where would this fit into your current workflow, and what would you need before relying on it daily?
 
-**Links:** [Live landing page — add after deployment] · [Public setup guide — add after publication]
+**Links:** https://ahmedfayedesmail-ui.github.io/contextvault/ · [Public setup guide — add after publication]
 
 *Disclosure: I'm the developer of ContextVault.*
 
@@ -79,7 +79,7 @@ A privacy detail worth being precise about: ContextVault's scanning, embedding g
 
 I'd love feedback from people using Claude Desktop with local tools: what context-retrieval features would be most useful to you?
 
-**Links:** [Live landing page — add after deployment] · [Public setup guide — add after publication]
+**Links:** https://ahmedfayedesmail-ui.github.io/contextvault/ · [Public setup guide — add after publication]
 
 *Disclosure: I'm the developer of ContextVault.*
 
@@ -168,7 +168,7 @@ The idea is simple: spend less time finding where something lives and more time 
 
 ContextVault has a Free plan, plus Pro at $9/month or $79/year.
 
-[Live landing page — add after deployment]
+https://ahmedfayedesmail-ui.github.io/contextvault/
 
 ---
 

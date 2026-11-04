@@ -4,6 +4,8 @@
 ![License: not declared](https://img.shields.io/badge/license-not%20declared-lightgrey.svg)
 ![Version](https://img.shields.io/badge/version-0.1.0-8b7cff.svg)
 
+🌐 **Website:** [ContextVault](https://ahmedfayedesmail-ui.github.io/contextvault/)
+
 ContextVault is a local-first developer context and memory system. It indexes a project on your machine, creates searchable embeddings with local Ollama, and lets you find relevant project code through a web interface or MCP-compatible desktop tools.
 
 ## Quick Start
