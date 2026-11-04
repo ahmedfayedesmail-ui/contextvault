@@ -197,6 +197,60 @@ export function saveIndexedData(
   }
 }
 
+interface ClearIndexCountRow {
+  count: number | bigint;
+}
+
+export interface ClearIndexResult {
+  deletedFiles: number;
+  deletedChunks: number;
+  vacuumed: boolean;
+}
+
+export function clearIndexedData(): ClearIndexResult {
+  const filesRow = database.prepare(`
+    SELECT COUNT(*) AS count FROM files
+  `).get() as ClearIndexCountRow | undefined;
+
+  const chunksRow = database.prepare(`
+    SELECT COUNT(*) AS count FROM chunks
+  `).get() as ClearIndexCountRow | undefined;
+
+  const deletedFiles = Number(filesRow?.count ?? 0);
+  const deletedChunks = Number(chunksRow?.count ?? 0);
+
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    database.exec("DELETE FROM chunks; DELETE FROM files;");
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  // VACUUM must run outside the delete transaction.
+  // The data deletion remains successful even if compaction cannot run.
+  let vacuumed = false;
+
+  try {
+    database.exec("PRAGMA wal_checkpoint(TRUNCATE);");
+    database.exec("VACUUM;");
+    vacuumed = true;
+  } catch (error) {
+    console.warn(
+      "[ContextVault] Index cleared, but database compaction failed:",
+      error
+    );
+  }
+
+  return {
+    deletedFiles,
+    deletedChunks,
+    vacuumed
+  };
+}
+
 // Calculate cosine similarity between two vectors.
 
 export function cosineSimilarity(

@@ -1,5 +1,7 @@
 import { Router } from "express";
 
+import { randomUUID } from "node:crypto";
+
 import { stat } from "node:fs/promises";
 
 import path from "node:path";
@@ -10,11 +12,11 @@ import { scanProject } from "../indexer/fileWatcher";
 
 import { indexProject } from "../indexer/pipeline";
 
-import { startLiveWatcher } from "../indexer/liveWatcher";
+import { startLiveWatcher, stopLiveWatcher } from "../indexer/liveWatcher";
 
 import { generateEmbedding } from "../indexer/embedder";
 
-import { searchVectors } from "../storage/vectors";
+import { clearIndexedData, searchVectors } from "../storage/vectors";
 
 import { getSystemStats } from "../storage/db";
 
@@ -65,6 +67,52 @@ const scanRequestSchema = z.object({
       }
     )
 });
+
+type IndexJobStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed";
+
+type IndexJobStage =
+  | "scanning"
+  | "embedding"
+  | "completed"
+  | "failed";
+
+interface IndexJob {
+  jobId: string;
+  status: IndexJobStatus;
+  stage: IndexJobStage;
+  totalFiles: number;
+  completedFiles: number;
+  totalChunks: number;
+  completedChunks: number;
+  currentFile: string | null;
+  filesCount: number | null;
+  chunksCount: number | null;
+  error: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+const indexJobs = new Map<string, IndexJob>();
+let activeIndexJobId: string | null = null;
+
+const INDEX_JOB_RETENTION_MS = 30 * 60 * 1000;
+
+function cleanupFinishedIndexJobs(): void {
+  const cutoff = Date.now() - INDEX_JOB_RETENTION_MS;
+
+  for (const [jobId, job] of indexJobs.entries()) {
+    const finished =
+      job.status === "completed" || job.status === "failed";
+
+    if (finished && job.updatedAt < cutoff) {
+      indexJobs.delete(jobId);
+    }
+  }
+}
 
 const searchRequestSchema = z.object({
   query: z.string()
@@ -132,6 +180,7 @@ apiRouter.post("/scan", async (req, res) => {
 });
 
 // POST /api/index
+// Start indexing in the background and return a job ID immediately.
 
 apiRouter.post("/index", async (req, res) => {
   const validation =
@@ -144,27 +193,145 @@ apiRouter.post("/index", async (req, res) => {
     });
   }
 
-  try {
-    const rootPath = path.resolve(
-      validation.data.rootPath
-    );
+  cleanupFinishedIndexJobs();
 
-    const result = await indexProject(rootPath);
+  if (activeIndexJobId) {
+    const activeJob = indexJobs.get(activeIndexJobId);
+
+    if (
+      activeJob &&
+      (activeJob.status === "queued" || activeJob.status === "running")
+    ) {
+      return res.status(409).json({
+        error: "Indexing is already in progress.",
+        jobId: activeJob.jobId
+      });
+    }
+
+    activeIndexJobId = null;
+  }
+
+  const rootPath = path.resolve(validation.data.rootPath);
+  const now = Date.now();
+
+  const job: IndexJob = {
+    jobId: randomUUID(),
+    status: "queued",
+    stage: "scanning",
+    totalFiles: 0,
+    completedFiles: 0,
+    totalChunks: 0,
+    completedChunks: 0,
+    currentFile: null,
+    filesCount: null,
+    chunksCount: null,
+    error: null,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  indexJobs.set(job.jobId, job);
+  activeIndexJobId = job.jobId;
+
+  // This task is intentionally not awaited by the HTTP request.
+  void (async () => {
+    job.status = "running";
+    job.updatedAt = Date.now();
+
+    try {
+      const result = await indexProject(rootPath, (progress) => {
+        job.stage = progress.stage;
+        job.totalFiles = progress.totalFiles;
+        job.completedFiles = progress.completedFiles;
+        job.totalChunks = progress.totalChunks;
+        job.completedChunks = progress.completedChunks;
+        job.currentFile = progress.currentFile;
+        job.updatedAt = Date.now();
+      });
+
+      job.status = "completed";
+      job.stage = "completed";
+      job.filesCount = result.filesCount;
+      job.chunksCount = result.chunksCount;
+    } catch (error) {
+      job.status = "failed";
+      job.stage = "failed";
+      job.error =
+        error instanceof Error
+          ? error.message
+          : "An unexpected indexing error occurred.";
+
+      console.error(
+        `[ContextVault] Index job ${job.jobId} failed:`,
+        error
+      );
+    } finally {
+      job.updatedAt = Date.now();
+
+      if (activeIndexJobId === job.jobId) {
+        activeIndexJobId = null;
+      }
+    }
+  })();
+
+  return res.status(202).json({
+    success: true,
+    job: { ...job }
+  });
+});
+
+// GET /api/index/:jobId
+// Retrieve the latest progress for a background indexing job.
+
+apiRouter.get("/index/:jobId", (req, res) => {
+  const job = indexJobs.get(req.params.jobId);
+
+  if (!job) {
+    return res.status(404).json({
+      error: "Index job not found."
+    });
+  }
+
+  return res.json({
+    job: { ...job }
+  });
+});
+
+// DELETE /api/index
+// Stop live file updates before clearing all indexed data.
+
+apiRouter.delete("/index", async (_req, res) => {
+  if (activeIndexJobId) {
+    const activeJob = indexJobs.get(activeIndexJobId);
+
+    if (
+      activeJob &&
+      (activeJob.status === "queued" || activeJob.status === "running")
+    ) {
+      return res.status(409).json({
+        error: "Cannot clear the index while indexing is in progress."
+      });
+    }
+  }
+
+  try {
+    await stopLiveWatcher();
+
+    const result = clearIndexedData();
 
     return res.json({
       success: true,
-      filesCount: result.filesCount,
-      chunksCount: result.chunksCount
+      ...result,
+      stats: getSystemStats()
     });
-
   } catch (error) {
     console.error(
-      "[ContextVault] Project indexing failed:",
+      "[ContextVault] Clear index failed:",
       error
     );
 
     return res.status(500).json({
-      error: "Project indexing failed",
+      error: "Clear index failed",
       message:
         error instanceof Error
           ? error.message

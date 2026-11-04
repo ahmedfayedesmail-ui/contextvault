@@ -1,89 +1,108 @@
 import { scanProject, chunkFile } from "./fileWatcher";
-
 import { generateEmbedding } from "./embedder";
-
 import { saveIndexedData } from "../storage/vectors";
-
-import type {
-  ProjectFile,
-  TextChunk
-} from "../types";
+import type { ProjectFile } from "../types";
 
 export interface IndexProjectResult {
   filesCount: number;
   chunksCount: number;
 }
 
+export interface IndexProjectProgress {
+  stage: "scanning" | "embedding";
+  totalFiles: number;
+  completedFiles: number;
+  totalChunks: number;
+  completedChunks: number;
+  currentFile: string | null;
+}
+
+export type IndexProgressCallback = (
+  progress: IndexProjectProgress
+) => void;
+
 export async function indexProject(
-  rootPath: string
+  rootPath: string,
+  onProgress?: IndexProgressCallback
 ): Promise<IndexProjectResult> {
+  onProgress?.({
+    stage: "scanning",
+    totalFiles: 0,
+    completedFiles: 0,
+    totalChunks: 0,
+    completedChunks: 0,
+    currentFile: null
+  });
 
-  console.info(
-    `[ContextVault] Starting indexing: ${rootPath}`
-  );
-
-  // Step 1: Scan the project.
+  console.info(`[ContextVault] Starting indexing: ${rootPath}`);
 
   const files = await scanProject(rootPath);
-
-  console.info(
-    `[ContextVault] Found ${files.length} files.`
+  const totalChunks = files.reduce(
+    (total, file) => total + chunkFile(file).length,
+    0
   );
 
-  // Step 2: Split files into chunks.
+  let completedFiles = 0;
+  let completedChunks = 0;
 
-  const chunks: TextChunk[] = files.flatMap(
-    (file) => chunkFile(file)
-  );
+  console.info(`[ContextVault] Found ${files.length} files.`);
+  console.info(`[ContextVault] Generated ${totalChunks} chunks.`);
 
-  console.info(
-    `[ContextVault] Generated ${chunks.length} chunks.`
-  );
+  onProgress?.({
+    stage: "embedding",
+    totalFiles: files.length,
+    completedFiles,
+    totalChunks,
+    completedChunks,
+    currentFile: null
+  });
 
-  // Step 3: Generate embeddings sequentially.
+  for (const file of files) {
+    const chunks = chunkFile(file);
+    const embeddings: number[][] = [];
 
-  const embeddings: number[][] = [];
+    onProgress?.({
+      stage: "embedding",
+      totalFiles: files.length,
+      completedFiles,
+      totalChunks,
+      completedChunks,
+      currentFile: file.path
+    });
 
-  for (let index = 0; index < chunks.length; index++) {
-    const chunk = chunks[index];
-
-    const embedding = await generateEmbedding(
-      chunk.content
-    );
-
-    embeddings.push(embedding);
-
-    const embeddedCount = index + 1;
-
-    if (embeddedCount % 10 === 0) {
-      console.info(
-        `[ContextVault] Embedded ${embeddedCount}/${chunks.length} chunks`
-      );
+    for (const chunk of chunks) {
+      embeddings.push(await generateEmbedding(chunk.content));
     }
+
+    // Commit a complete file atomically instead of retaining the whole
+    // project's embeddings in memory until the final file is processed.
+    saveIndexedData([file], chunks, embeddings);
+
+    completedFiles++;
+    completedChunks += chunks.length;
+
+    onProgress?.({
+      stage: "embedding",
+      totalFiles: files.length,
+      completedFiles,
+      totalChunks,
+      completedChunks,
+      currentFile: file.path
+    });
+
+    console.info(
+      `[ContextVault] Saved ${completedFiles}/${files.length} files; ` +
+      `${completedChunks}/${totalChunks} chunks`
+    );
   }
 
-  // Step 4: Persist everything transactionally.
-
-  saveIndexedData(
-    files,
-    chunks,
-    embeddings
-  );
-
-  console.info(
-    "[ContextVault] Indexing completed successfully."
-  );
-
-  console.info(
-    `[ContextVault] Files: ${files.length}, Chunks: ${chunks.length}`
-  );
+  console.info("[ContextVault] Indexing completed successfully.");
 
   return {
     filesCount: files.length,
-    chunksCount: chunks.length
+    chunksCount: completedChunks
   };
 }
-
 
 export async function indexSingleFile(
   file: ProjectFile
@@ -92,16 +111,8 @@ export async function indexSingleFile(
   const embeddings: number[][] = [];
 
   for (const chunk of chunks) {
-    const embedding = await generateEmbedding(
-      chunk.content
-    );
-
-    embeddings.push(embedding);
+    embeddings.push(await generateEmbedding(chunk.content));
   }
 
-  saveIndexedData(
-    [file],
-    chunks,
-    embeddings
-  );
+  saveIndexedData([file], chunks, embeddings);
 }

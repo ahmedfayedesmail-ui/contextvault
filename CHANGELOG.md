@@ -2,6 +2,15 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Session 10 — Progressive Indexing and Index Management
+
+- Changed project indexing to a background job API with progress polling and immediate HTTP 202 responses.
+- Persisted each file and its embeddings atomically as soon as its embedding work completes, allowing file/chunk statistics to update during indexing.
+- Added a live progress panel showing completed files, saved chunks, current file, and percentage progress.
+- Added a Clear Index endpoint and confirmation-protected UI action; live file watching is stopped and its pending queue drained before deletion.
+- Added transactional deletion of chunks and files followed by SQLite WAL checkpointing and VACUUM compaction.
+- Added regression tests for background job completion, partial progress visibility, clear-index conflicts during indexing, and complete index deletion.
+
 ## Windows Ollama Model Verification Hotfix
 
 - Rechecked `nomic-embed-text` through `ollama list` after the installer pull step and fail clearly if the model is still unavailable.

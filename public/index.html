@@ -258,6 +258,81 @@
       color: var(--danger);
     }
 
+    .index-progress {
+      margin-top: 16px;
+      padding: 14px;
+      background: #0d1119;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .index-progress[hidden] {
+      display: none;
+    }
+
+    .index-progress-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .progress-percent {
+      color: var(--success);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 9px;
+      overflow: hidden;
+      background: #252d3c;
+      border-radius: 20px;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 20px;
+      transition: width 0.25s ease;
+    }
+
+    .progress-detail {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .panel-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+
+    .clear-index-button {
+      padding: 9px 13px;
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid rgba(255, 115, 125, 0.35);
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .clear-index-button:hover:not(:disabled) {
+      background: rgba(255, 115, 125, 0.09);
+    }
+
+    .clear-index-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
     .search-box {
       display: flex;
       align-items: center;
@@ -581,6 +656,53 @@
         role="status"
         aria-live="polite"
       ></p>
+
+      <div
+        id="index-progress"
+        class="index-progress"
+        hidden
+      >
+        <div class="index-progress-top">
+          <span id="index-progress-label">
+            Preparing indexing...
+          </span>
+          <span
+            id="index-progress-percent"
+            class="progress-percent"
+          >0%</span>
+        </div>
+
+        <div
+          id="index-progress-track"
+          class="progress-track"
+          role="progressbar"
+          aria-label="Project indexing progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <div
+            id="index-progress-fill"
+            class="progress-fill"
+          ></div>
+        </div>
+
+        <p
+          id="index-progress-detail"
+          class="progress-detail"
+        ></p>
+      </div>
+
+      <div class="panel-actions">
+        <button
+          id="clear-index-button"
+          class="clear-index-button"
+          type="button"
+          disabled
+        >
+          Clear Index
+        </button>
+      </div>
     </section>
 
     <form id="search-form">
@@ -675,6 +797,17 @@
 
     const onboardingStatus = document.getElementById("onboarding-status");
 
+    const progressPanel = document.getElementById("index-progress");
+    const progressLabel = document.getElementById("index-progress-label");
+    const progressPercent = document.getElementById("index-progress-percent");
+    const progressTrack = document.getElementById("index-progress-track");
+    const progressFill = document.getElementById("index-progress-fill");
+    const progressDetail = document.getElementById("index-progress-detail");
+    const clearIndexButton = document.getElementById("clear-index-button");
+
+    let isIndexing = false;
+    let isClearingIndex = false;
+
     async function readJsonResponse(response, fallbackMessage) {
       let data;
 
@@ -707,6 +840,10 @@
         totalFiles.textContent = String(fileCount);
         totalChunks.textContent = String(chunkCount);
         welcomeMessage.hidden = fileCount > 0;
+        clearIndexButton.disabled =
+          isIndexing ||
+          isClearingIndex ||
+          (fileCount === 0 && chunkCount === 0);
 
         return stats;
       } catch (error) {
@@ -722,23 +859,117 @@
     void refreshStats();
     window.setInterval(() => void refreshStats(), 5000);
 
+    function sleep(milliseconds) {
+      return new Promise((resolve) => {
+        window.setTimeout(resolve, milliseconds);
+      });
+    }
+
+    function renderIndexProgress(job) {
+      progressPanel.hidden = false;
+
+      const totalFileCount = Number(job.totalFiles || 0);
+      const completedFileCount = Number(job.completedFiles || 0);
+      const totalChunkCount = Number(job.totalChunks || 0);
+      const completedChunkCount = Number(job.completedChunks || 0);
+
+      let percent = totalFileCount > 0
+        ? Math.floor((completedFileCount / totalFileCount) * 100)
+        : 0;
+
+      if (job.status === "completed") {
+        percent = 100;
+      }
+
+      progressFill.style.width = `${percent}%`;
+      progressPercent.textContent = `${percent}%`;
+      progressTrack.setAttribute("aria-valuenow", String(percent));
+
+      if (job.stage === "scanning") {
+        progressLabel.textContent = "Scanning project files...";
+      } else if (job.status === "completed") {
+        progressLabel.textContent = "Indexing complete";
+      } else {
+        progressLabel.textContent = "Embedding and saving files...";
+      }
+
+      let detail =
+        `${completedFileCount}/${totalFileCount} files processed · ` +
+        `${completedChunkCount}/${totalChunkCount} chunks saved`;
+
+      if (job.currentFile) {
+        detail += ` · Current file: ${job.currentFile}`;
+      }
+
+      progressDetail.textContent = detail;
+    }
+
+    async function waitForIndexJob(jobId) {
+      while (true) {
+        const response = await fetch(
+          `/api/index/${encodeURIComponent(jobId)}`
+        );
+
+        const data = await readJsonResponse(
+          response,
+          "Unable to retrieve indexing progress."
+        );
+
+        const job = data.job;
+
+        if (!job) {
+          throw new Error("The indexing job response was invalid.");
+        }
+
+        renderIndexProgress(job);
+
+        // Refresh persisted file/chunk counts while processing is underway.
+        await refreshStats();
+
+        if (job.status === "completed") {
+          return job;
+        }
+
+        if (job.status === "failed") {
+          throw new Error(
+            job.error || "Project indexing failed."
+          );
+        }
+
+        await sleep(750);
+      }
+    }
+
     indexForm.addEventListener("submit", async (event) => {
       event.preventDefault();
 
       const rootPath = projectPathInput.value.trim();
 
-      if (!rootPath) {
+      if (!rootPath || isIndexing || isClearingIndex) {
         return;
       }
 
+      isIndexing = true;
+
       indexButton.disabled = true;
       projectPathInput.disabled = true;
+      clearIndexButton.disabled = true;
+
       indexButton.textContent = "Indexing...";
       onboardingStatus.className = "onboarding-status";
-      onboardingStatus.textContent = "Indexing your project. This may take a little while...";
+      onboardingStatus.textContent = "Starting project indexing...";
+
+      progressPanel.hidden = false;
+      progressFill.style.width = "0%";
+      progressPercent.textContent = "0%";
+      progressTrack.setAttribute("aria-valuenow", "0");
+      progressLabel.textContent = "Preparing indexing...";
+      progressDetail.textContent = "";
 
       try {
-        const indexResponse = await fetch("/api/index", {
+        // The POST responds with HTTP 202 and a job ID without waiting
+        // for every file to be embedded.
+        const startResponse = await fetch("/api/index", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -746,10 +977,21 @@
           body: JSON.stringify({ rootPath })
         });
 
-        const indexData = await readJsonResponse(
-          indexResponse,
-          "Project indexing failed."
+        const startData = await readJsonResponse(
+          startResponse,
+          "Could not start project indexing."
         );
+
+        const jobId = startData.job?.jobId;
+
+        if (!jobId) {
+          throw new Error("The server did not return an indexing job ID.");
+        }
+
+        onboardingStatus.textContent =
+          "Indexing started. Progress will update automatically...";
+
+        const indexData = await waitForIndexJob(jobId);
 
         onboardingStatus.textContent =
           `Indexed ${indexData.filesCount} files and ${indexData.chunksCount} chunks. Starting live monitoring...`;
@@ -787,10 +1029,64 @@
           error instanceof Error
             ? error.message
             : "An unexpected error occurred while indexing the project.";
+
+        progressLabel.textContent = "Indexing failed";
+        await refreshStats();
       } finally {
+        isIndexing = false;
         indexButton.disabled = false;
         projectPathInput.disabled = false;
         indexButton.textContent = "Index Project";
+        await refreshStats();
+      }
+    });
+
+    clearIndexButton.addEventListener("click", async () => {
+      if (isIndexing || isClearingIndex) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "This permanently deletes all indexed projects, files, chunks, and embeddings from this local ContextVault database. Continue?"
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      isClearingIndex = true;
+      clearIndexButton.disabled = true;
+
+      try {
+        const response = await fetch("/api/index", {
+          method: "DELETE"
+        });
+
+        const result = await readJsonResponse(
+          response,
+          "Could not clear the index."
+        );
+
+        progressPanel.hidden = true;
+        onboardingStatus.className = "onboarding-status success";
+        onboardingStatus.textContent =
+          `Index cleared. Removed ${result.deletedFiles} files and ${result.deletedChunks} chunks.`;
+
+        if (!result.vacuumed) {
+          onboardingStatus.textContent +=
+            " Data was deleted, but database compaction could not complete.";
+        }
+
+        await refreshStats();
+      } catch (error) {
+        onboardingStatus.className = "onboarding-status error";
+        onboardingStatus.textContent =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred while clearing the index.";
+      } finally {
+        isClearingIndex = false;
+        await refreshStats();
       }
     });
 
