@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0b0d12"
+  >
+
+  <title>ContextVault</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+
+      --background: #0b0d12;
+      --surface: #121620;
+      --surface-hover: #191f2b;
+      --border: #252d3c;
+
+      --text: #edf0f7;
+      --muted: #8993a6;
+
+      --accent: #8b7cff;
+      --accent-hover: #a195ff;
+
+      --success: #48d6a0;
+      --danger: #ff737d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+
+      background:
+        radial-gradient(
+          circle at 50% -15%,
+          rgba(139, 124, 255, 0.13),
+          transparent 42%
+        ),
+        var(--background);
+
+      color: var(--text);
+
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    .container {
+      width: min(900px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 64px 0;
+    }
+
+    header {
+      margin-bottom: 54px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+
+      display: grid;
+      place-items: center;
+
+      background: rgba(139, 124, 255, 0.15);
+      border: 1px solid rgba(139, 124, 255, 0.3);
+
+      border-radius: 11px;
+
+      color: var(--accent);
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .brand-name {
+      font-size: 19px;
+      font-weight: 750;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-label {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 34px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(30px, 6vw, 46px);
+      letter-spacing: -1.8px;
+      font-weight: 750;
+    }
+
+    .hero p {
+      color: var(--muted);
+      margin-top: 13px;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      padding: 9px;
+
+      background: var(--surface);
+      border: 1px solid var(--border);
+
+      border-radius: 15px;
+
+      transition: border-color 0.2s;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--accent);
+    }
+
+    .search-box input {
+      flex: 1;
+      min-width: 0;
+
+      padding: 13px;
+
+      background: transparent;
+      border: none;
+      outline: none;
+
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .search-box input::placeholder {
+      color: #657087;
+    }
+
+    .search-button {
+      padding: 13px 23px;
+
+      background: var(--accent);
+      color: white;
+
+      border: none;
+      border-radius: 10px;
+
+      font-size: 14px;
+      font-weight: 700;
+
+      cursor: pointer;
+
+      transition:
+        background 0.2s,
+        transform 0.2s;
+    }
+
+    .search-button:hover {
+      background: var(--accent-hover);
+    }
+
+    .search-button:active {
+      transform: scale(0.97);
+    }
+
+    .search-button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      margin: 40px 0 17px;
+    }
+
+    .results-header h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .result-count {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .results {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .result-card {
+      padding: 20px;
+
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+
+      transition:
+        background 0.2s,
+        border-color 0.2s;
+    }
+
+    .result-card:hover {
+      background: var(--surface-hover);
+      border-color: #414b60;
+    }
+
+    .result-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+
+      margin-bottom: 13px;
+    }
+
+    .file-path {
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .score {
+      flex-shrink: 0;
+
+      padding: 5px 9px;
+
+      background: rgba(72, 214, 160, 0.1);
+      border: 1px solid rgba(72, 214, 160, 0.2);
+
+      border-radius: 20px;
+
+      color: var(--success);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .snippet {
+      margin: 0;
+
+      color: #b1bacb;
+
+      font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+      font-size: 12px;
+      line-height: 1.8;
+
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .empty-state {
+      padding: 45px 20px;
+
+      text-align: center;
+
+      border: 1px dashed var(--border);
+      border-radius: 13px;
+
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-message {
+      margin-top: 15px;
+      text-align: center;
+
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-message.error {
+      color: var(--danger);
+    }
+
+    footer {
+      margin-top: 70px;
+      padding-top: 20px;
+
+      border-top: 1px solid var(--border);
+
+      color: #657087;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    @media (max-width: 540px) {
+      .container {
+        padding: 35px 0;
+      }
+
+      .hero h1 {
+        letter-spacing: -1px;
+      }
+
+      .search-box {
+        flex-wrap: wrap;
+      }
+
+      .search-box input {
+        width: 100%;
+        flex-basis: 100%;
+      }
+
+      .search-button {
+        width: 100%;
+      }
+
+      .result-card {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="container">
+
+    <header>
+      <div class="brand">
+
+        <div class="brand-icon">
+          C
+        </div>
+
+        <div>
+          <div class="brand-name">
+            ContextVault
+          </div>
+
+          <div class="brand-label">
+            Local-first developer memory
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <section class="hero">
+
+      <h1>
+        Search your project context.
+      </h1>
+
+      <p>
+        Find relevant code and knowledge across your indexed projects.
+      </p>
+
+    </section>
+
+    <form id="search-form">
+
+      <div class="search-box">
+
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Ask something about your project..."
+          autocomplete="off"
+          required
+        >
+
+        <button
+          id="search-button"
+          class="search-button"
+          type="submit"
+        >
+          Search
+        </button>
+
+      </div>
+
+    </form>
+
+    <div
+      id="status"
+      class="status-message"
+      role="status"
+      aria-live="polite"
+    ></div>
+
+    <section>
+
+      <div class="results-header">
+
+        <h2>
+          Search Results
+        </h2>
+
+        <span
+          id="result-count"
+          class="result-count"
+        >
+          No results yet
+        </span>
+
+      </div>
+
+      <div
+        id="results"
+        class="results"
+      >
+        <div class="empty-state">
+          Your search results will appear here.
+        </div>
+      </div>
+
+    </section>
+
+    <footer>
+      ContextVault · Local-first developer memory
+    </footer>
+
+  </main>
+
+  <script>
+    const form = document.getElementById("search-form");
+
+    const input = document.getElementById("search-input");
+
+    const button = document.getElementById("search-button");
+
+    const resultsContainer = document.getElementById("results");
+
+    const resultCount = document.getElementById("result-count");
+
+    const status = document.getElementById("status");
+
+    function createResultCard(result) {
+      const card = document.createElement("article");
+      card.className = "result-card";
+
+      const top = document.createElement("div");
+      top.className = "result-top";
+
+      const filePath = document.createElement("div");
+      filePath.className = "file-path";
+      filePath.textContent = result.filePath;
+
+      const score = document.createElement("span");
+      score.className = "score";
+      score.textContent = `Match: ${(result.score * 100).toFixed(1)}%`;
+
+      const snippet = document.createElement("pre");
+      snippet.className = "snippet";
+      snippet.textContent = result.content;
+
+      top.append(filePath, score);
+      card.append(top, snippet);
+
+      return card;
+    }
+
+    function displayResults(results) {
+      resultsContainer.replaceChildren();
+
+      if (!results.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.textContent = "No matching results found.";
+
+        resultsContainer.appendChild(empty);
+
+        resultCount.textContent = "0 results";
+
+        return;
+      }
+
+      results.forEach(result => {
+        resultsContainer.appendChild(
+          createResultCard(result)
+        );
+      });
+
+      resultCount.textContent =
+        `${results.length} result${results.length === 1 ? "" : "s"}`;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const query = input.value.trim();
+
+      if (!query) {
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Searching...";
+
+      status.className = "status-message";
+      status.textContent = "Searching indexed project context...";
+
+      try {
+        const response = await fetch("/api/search", {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            query,
+            limit: 5
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || data.error || "Search request failed."
+          );
+        }
+
+        displayResults(data.results || []);
+
+        status.textContent = "Search completed.";
+
+      } catch (error) {
+        resultsContainer.replaceChildren();
+
+        const message = document.createElement("div");
+        message.className = "empty-state";
+        message.textContent = "Search could not be completed.";
+
+        resultsContainer.appendChild(message);
+
+        resultCount.textContent = "Error";
+
+        status.className = "status-message error";
+
+        status.textContent =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.";
+
+      } finally {
+        button.disabled = false;
+        button.textContent = "Search";
+      }
+    });
+  </script>
+
+</body>
+</html>

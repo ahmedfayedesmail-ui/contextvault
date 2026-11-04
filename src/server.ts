@@ -1,7 +1,9 @@
 import "dotenv/config";
 
 import express from "express";
+
 import { apiRouter } from "./api/routes";
+
 import "./storage/db";
 
 import type { HealthResponse } from "./types";
@@ -25,12 +27,18 @@ app.get("/health", (_req, res) => {
   res.json(response);
 });
 
+// Serve the ContextVault frontend.
+
+app.use(express.static("public"));
+
 app.use("/api", apiRouter);
 
 export { app };
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`ContextVault running on http://localhost:${PORT}`);
+    console.log(
+      `ContextVault running on http://localhost:${PORT}`
+    );
   });
 }

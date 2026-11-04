@@ -5,8 +5,15 @@ import type {
   TextChunk
 } from "../types";
 
+// Search result structure.
+
+export interface SearchResult {
+  filePath: string;
+  content: string;
+  score: number;
+}
+
 // Ensure the embeddings BLOB column exists.
-// This also supports databases created in Session 1.
 
 interface TableColumn {
   name: string;
@@ -30,6 +37,8 @@ if (!hasEmbeddingColumn) {
 interface FileIdRow {
   id: number | bigint;
 }
+
+// Save indexed files, chunks, and embeddings.
 
 export function saveIndexedData(
   files: ProjectFile[],
@@ -118,8 +127,6 @@ export function saveIndexedData(
   try {
     const fileIds = new Map<string, number>();
 
-    // Save files and retrieve their database IDs.
-
     for (const file of files) {
       upsertFile.run(
         file.path,
@@ -145,13 +152,9 @@ export function saveIndexedData(
       );
     }
 
-    // Remove previous chunks for reindexed files.
-
     for (const fileId of new Set(fileIds.values())) {
       deleteChunks.run(fileId);
     }
-
-    // Save chunks and their embedding vectors.
 
     for (let index = 0; index < chunks.length; index++) {
       const chunk = chunks[index];
@@ -192,4 +195,169 @@ export function saveIndexedData(
     database.exec("ROLLBACK");
     throw error;
   }
+}
+
+// Calculate cosine similarity between two vectors.
+
+export function cosineSimilarity(
+  vectorA: number[],
+  vectorB: number[]
+): number {
+
+  if (vectorA.length !== vectorB.length) {
+    throw new Error(
+      "Cannot calculate cosine similarity: vector dimensions do not match."
+    );
+  }
+
+  if (
+    vectorA.length === 0 ||
+    !vectorA.every(Number.isFinite) ||
+    !vectorB.every(Number.isFinite)
+  ) {
+    throw new Error(
+      "Cannot calculate cosine similarity: invalid vector."
+    );
+  }
+
+  let dotProduct = 0;
+  let magnitudeA = 0;
+  let magnitudeB = 0;
+
+  for (let index = 0; index < vectorA.length; index++) {
+    dotProduct += vectorA[index] * vectorB[index];
+
+    magnitudeA += vectorA[index] ** 2;
+
+    magnitudeB += vectorB[index] ** 2;
+  }
+
+  const denominator = Math.sqrt(
+    magnitudeA * magnitudeB
+  );
+
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return Math.max(
+    -1,
+    Math.min(1, dotProduct / denominator)
+  );
+}
+
+// Decode Float32 embedding from SQLite BLOB.
+
+function decodeEmbedding(
+  blob: Uint8Array
+): number[] | null {
+
+  if (
+    blob.byteLength === 0 ||
+    blob.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0
+  ) {
+    return null;
+  }
+
+  const view = new DataView(
+    blob.buffer,
+    blob.byteOffset,
+    blob.byteLength
+  );
+
+  const embedding: number[] = [];
+
+  for (
+    let offset = 0;
+    offset < blob.byteLength;
+    offset += Float32Array.BYTES_PER_ELEMENT
+  ) {
+    const value = view.getFloat32(offset, true);
+
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+
+    embedding.push(value);
+  }
+
+  return embedding;
+}
+
+// Search stored vectors and return the best matches.
+
+interface StoredVectorRow {
+  content: string;
+  filePath: string;
+  embedding: Uint8Array;
+}
+
+export function searchVectors(
+  queryEmbedding: number[],
+  limit: number = 5
+): SearchResult[] {
+
+  if (
+    queryEmbedding.length === 0 ||
+    !queryEmbedding.every(Number.isFinite)
+  ) {
+    throw new Error(
+      "Invalid query embedding."
+    );
+  }
+
+  const safeLimit = Number.isFinite(limit)
+    ? Math.max(0, Math.floor(limit))
+    : 5;
+
+  if (safeLimit === 0) {
+    return [];
+  }
+
+  const rows = database.prepare(`
+    SELECT
+      chunks.content AS content,
+      files.path AS filePath,
+      chunks.embedding AS embedding
+
+    FROM chunks
+
+    INNER JOIN files
+      ON files.id = chunks.file_id
+
+    WHERE chunks.embedding IS NOT NULL
+  `).all() as StoredVectorRow[];
+
+  const results: SearchResult[] = [];
+
+  for (const row of rows) {
+    const storedEmbedding = decodeEmbedding(
+      row.embedding
+    );
+
+    if (!storedEmbedding) {
+      continue;
+    }
+
+    if (storedEmbedding.length !== queryEmbedding.length) {
+      continue;
+    }
+
+    const score = cosineSimilarity(
+      queryEmbedding,
+      storedEmbedding
+    );
+
+    results.push({
+      filePath: row.filePath,
+      content: row.content,
+      score
+    });
+  }
+
+  results.sort(
+    (a, b) => b.score - a.score
+  );
+
+  return results.slice(0, safeLimit);
 }

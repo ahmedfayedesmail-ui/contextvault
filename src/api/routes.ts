@@ -10,6 +10,10 @@ import { scanProject } from "../indexer/fileWatcher";
 
 import { indexProject } from "../indexer/pipeline";
 
+import { generateEmbedding } from "../indexer/embedder";
+
+import { searchVectors } from "../storage/vectors";
+
 import type { ScannedFile } from "../types";
 
 export const apiRouter = Router();
@@ -35,6 +39,18 @@ const scanRequestSchema = z.object({
         message: "rootPath must be an existing directory"
       }
     )
+});
+
+const searchRequestSchema = z.object({
+  query: z.string()
+    .trim()
+    .min(1),
+
+  limit: z.number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
 });
 
 // POST /api/scan
@@ -124,6 +140,56 @@ apiRouter.post("/index", async (req, res) => {
 
     return res.status(500).json({
       error: "Project indexing failed",
+      message:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred."
+    });
+  }
+});
+
+// POST /api/search
+
+apiRouter.post("/search", async (req, res) => {
+  const validation = searchRequestSchema.safeParse(
+    req.body
+  );
+
+  if (!validation.success) {
+    return res.status(400).json({
+      error: "Invalid search request",
+      details: validation.error.issues
+    });
+  }
+
+  try {
+    const { query, limit } = validation.data;
+
+    // Convert the search query into an embedding.
+
+    const queryEmbedding = await generateEmbedding(
+      query
+    );
+
+    // Find the closest stored vectors.
+
+    const results = searchVectors(
+      queryEmbedding,
+      limit ?? 5
+    );
+
+    return res.json({
+      results
+    });
+
+  } catch (error) {
+    console.error(
+      "[ContextVault] Search failed:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Search failed",
       message:
         error instanceof Error
           ? error.message
