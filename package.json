@@ -4,7 +4,9 @@
   "private": true,
   "description": "Local-first developer context and memory system",
   "main": "dist/server.js",
-  "engines": { "node": ">=22.13.0 <23" },
+  "engines": {
+    "node": ">=22.13.0 <23"
+  },
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--experimental-sqlite tsx watch src/server.ts",
     "build": "tsc",
@@ -13,6 +15,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "chokidar": "^4.0.3",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
     "zod": "^4.6.7"
