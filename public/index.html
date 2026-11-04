@@ -151,6 +151,113 @@
       font-weight: 750;
     }
 
+    .onboarding-panel {
+      margin-bottom: 22px;
+      padding: 22px;
+
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+    }
+
+    .onboarding-heading {
+      margin: 0 0 9px;
+      font-size: 17px;
+      font-weight: 750;
+    }
+
+    .welcome-message {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .welcome-message[hidden] {
+      display: none;
+    }
+
+    .onboarding-form {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .project-path-input {
+      flex: 1;
+      min-width: 0;
+      padding: 13px 14px;
+
+      background: #0d1119;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    .project-path-input::placeholder {
+      color: #657087;
+    }
+
+    .project-path-input:focus {
+      border-color: var(--accent);
+    }
+
+    .project-path-input:disabled {
+      opacity: 0.65;
+    }
+
+    .index-button {
+      padding: 13px 18px;
+
+      background: var(--accent);
+      color: white;
+
+      border: none;
+      border-radius: 10px;
+
+      font-size: 13px;
+      font-weight: 750;
+      white-space: nowrap;
+
+      cursor: pointer;
+      transition:
+        background 0.2s,
+        transform 0.2s;
+    }
+
+    .index-button:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .index-button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .index-button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .onboarding-status {
+      min-height: 18px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .onboarding-status.success {
+      color: var(--success);
+    }
+
+    .onboarding-status.error {
+      color: var(--danger);
+    }
+
     .search-box {
       display: flex;
       align-items: center;
@@ -354,8 +461,24 @@
         padding: 35px 0;
       }
 
+      header {
+        margin-bottom: 38px;
+      }
+
       .hero h1 {
         letter-spacing: -1px;
+      }
+
+      .onboarding-panel {
+        padding: 17px;
+      }
+
+      .onboarding-form {
+        flex-direction: column;
+      }
+
+      .index-button {
+        width: 100%;
       }
 
       .search-box {
@@ -421,6 +544,44 @@
       <span>Chunks:</span>
       <span id="total-chunks" class="stats-value">0</span>
     </div>
+
+    <section class="onboarding-panel" aria-labelledby="onboarding-heading">
+      <h2 id="onboarding-heading" class="onboarding-heading">
+        Get started with ContextVault
+      </h2>
+
+      <p id="welcome-message" class="welcome-message">
+        Welcome to ContextVault! To get started, enter a project path below and click Index.
+      </p>
+
+      <form id="index-form" class="onboarding-form">
+        <input
+          id="project-path"
+          class="project-path-input"
+          type="text"
+          placeholder="C:\Users\YourName\Projects\YourProject"
+          aria-label="Project folder path"
+          autocomplete="off"
+          spellcheck="false"
+          required
+        >
+
+        <button
+          id="index-button"
+          class="index-button"
+          type="submit"
+        >
+          Index Project
+        </button>
+      </form>
+
+      <p
+        id="onboarding-status"
+        class="onboarding-status"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
 
     <form id="search-form">
 
@@ -504,28 +665,134 @@
 
     const totalChunks = document.getElementById("total-chunks");
 
+    const welcomeMessage = document.getElementById("welcome-message");
+
+    const indexForm = document.getElementById("index-form");
+
+    const projectPathInput = document.getElementById("project-path");
+
+    const indexButton = document.getElementById("index-button");
+
+    const onboardingStatus = document.getElementById("onboarding-status");
+
+    async function readJsonResponse(response, fallbackMessage) {
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(fallbackMessage);
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || data.error || fallbackMessage
+        );
+      }
+
+      return data;
+    }
+
     async function refreshStats() {
       try {
         const response = await fetch("/api/stats");
+        const stats = await readJsonResponse(
+          response,
+          "Unable to load system statistics."
+        );
 
-        if (!response.ok) {
-          throw new Error("Unable to load system statistics.");
-        }
+        const fileCount = Number(stats.totalFiles ?? 0);
+        const chunkCount = Number(stats.totalChunks ?? 0);
 
-        const stats = await response.json();
+        totalFiles.textContent = String(fileCount);
+        totalChunks.textContent = String(chunkCount);
+        welcomeMessage.hidden = fileCount > 0;
 
-        totalFiles.textContent = String(stats.totalFiles ?? 0);
-        totalChunks.textContent = String(stats.totalChunks ?? 0);
+        return stats;
       } catch (error) {
         console.error(
           "[ContextVault] Stats refresh failed:",
           error
         );
+
+        return null;
       }
     }
 
     void refreshStats();
     window.setInterval(() => void refreshStats(), 5000);
+
+    indexForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const rootPath = projectPathInput.value.trim();
+
+      if (!rootPath) {
+        return;
+      }
+
+      indexButton.disabled = true;
+      projectPathInput.disabled = true;
+      indexButton.textContent = "Indexing...";
+      onboardingStatus.className = "onboarding-status";
+      onboardingStatus.textContent = "Indexing your project. This may take a little while...";
+
+      try {
+        const indexResponse = await fetch("/api/index", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ rootPath })
+        });
+
+        const indexData = await readJsonResponse(
+          indexResponse,
+          "Project indexing failed."
+        );
+
+        onboardingStatus.textContent =
+          `Indexed ${indexData.filesCount} files and ${indexData.chunksCount} chunks. Starting live monitoring...`;
+
+        const watchResponse = await fetch("/api/watch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ rootPath })
+        });
+
+        try {
+          await readJsonResponse(
+            watchResponse,
+            "Live monitoring could not be started."
+          );
+        } catch (watchError) {
+          onboardingStatus.className = "onboarding-status error";
+          onboardingStatus.textContent =
+            `Project indexed successfully, but live monitoring could not start: ${watchError.message}`;
+
+          await refreshStats();
+          return;
+        }
+
+        onboardingStatus.className = "onboarding-status success";
+        onboardingStatus.textContent =
+          `Project ready. Indexed ${indexData.filesCount} files and ${indexData.chunksCount} chunks. Live monitoring is active.`;
+
+        await refreshStats();
+      } catch (error) {
+        onboardingStatus.className = "onboarding-status error";
+        onboardingStatus.textContent =
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred while indexing the project.";
+      } finally {
+        indexButton.disabled = false;
+        projectPathInput.disabled = false;
+        indexButton.textContent = "Index Project";
+      }
+    });
 
     function createResultCard(result) {
       const card = document.createElement("article");
@@ -606,13 +873,10 @@
           })
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data.message || data.error || "Search request failed."
-          );
-        }
+        const data = await readJsonResponse(
+          response,
+          "Search request failed."
+        );
 
         displayResults(data.results || []);
 
