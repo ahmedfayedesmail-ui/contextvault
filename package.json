@@ -1,0 +1,33 @@
+{
+  "name": "contextvault",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first developer context and memory system",
+  "main": "dist/server.js",
+  "engines": { "node": ">=22.13.0 <23" },
+  "scripts": {
+    "dev": "cross-env NODE_OPTIONS=--experimental-sqlite tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "cross-env NODE_OPTIONS=--experimental-sqlite vitest run",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/supertest": "^7.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.1",
+    "cross-env": "^10.1.0",
+    "eslint": "^10.14.0",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}
