@@ -1,11 +1,14 @@
 import { Router } from "express";
 
 import { stat } from "node:fs/promises";
+
 import path from "node:path";
 
 import { z } from "zod";
 
 import { scanProject } from "../indexer/fileWatcher";
+
+import { indexProject } from "../indexer/pipeline";
 
 import type { ScannedFile } from "../types";
 
@@ -23,6 +26,7 @@ const scanRequestSchema = z.object({
           );
 
           return stats.isDirectory();
+
         } catch {
           return false;
         }
@@ -32,6 +36,8 @@ const scanRequestSchema = z.object({
       }
     )
 });
+
+// POST /api/scan
 
 apiRouter.post("/scan", async (req, res) => {
   const validation =
@@ -67,6 +73,7 @@ apiRouter.post("/scan", async (req, res) => {
       scanned: files.length,
       files: scannedFiles
     });
+
   } catch (error) {
     console.error(
       "[ContextVault] Project scan failed:",
@@ -74,7 +81,53 @@ apiRouter.post("/scan", async (req, res) => {
     );
 
     return res.status(500).json({
-      error: "Project scan failed"
+      error: "Project scan failed",
+      message:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred."
+    });
+  }
+});
+
+// POST /api/index
+
+apiRouter.post("/index", async (req, res) => {
+  const validation =
+    await scanRequestSchema.safeParseAsync(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      error: "Invalid indexing request",
+      details: validation.error.issues
+    });
+  }
+
+  try {
+    const rootPath = path.resolve(
+      validation.data.rootPath
+    );
+
+    const result = await indexProject(rootPath);
+
+    return res.json({
+      success: true,
+      filesCount: result.filesCount,
+      chunksCount: result.chunksCount
+    });
+
+  } catch (error) {
+    console.error(
+      "[ContextVault] Project indexing failed:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Project indexing failed",
+      message:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred."
     });
   }
 });
