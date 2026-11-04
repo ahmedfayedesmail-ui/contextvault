@@ -11,6 +11,8 @@ const databasePath =
     ? ":memory:"
     : path.resolve(configuredPath);
 
+export const resolvedDatabasePath = databasePath;
+
 if (databasePath !== ":memory:") {
   mkdirSync(path.dirname(databasePath), {
     recursive: true
@@ -47,10 +49,47 @@ database.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `);
+
+database.prepare(`
+  INSERT OR IGNORE INTO settings (key, value)
+  VALUES (?, ?)
+`).run("license", "Free");
 
 interface CountRow {
   total: number | bigint;
+}
+
+interface SettingRow {
+  value: string;
+}
+
+export type LicenseType = "Free" | "Pro";
+
+export function getLicense(): LicenseType {
+  const row = database.prepare(`
+    SELECT value
+    FROM settings
+    WHERE key = ?
+  `).get("license") as SettingRow | undefined;
+
+  return row?.value === "Pro" ? "Pro" : "Free";
+}
+
+export function setLicense(license: LicenseType): LicenseType {
+  database.prepare(`
+    INSERT INTO settings (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value
+  `).run("license", license);
+
+  return license;
 }
 
 export function getSystemStats(): {

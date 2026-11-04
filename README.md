@@ -105,6 +105,61 @@ Files and folders excluded by the scanner's ignore rules are not indexed.
 
 See README_MCP.md for MCP desktop client configuration.
 
+## Connect with Claude Desktop and Cursor
+
+ContextVault can connect to MCP-compatible AI clients using its local
+Model Context Protocol server. The dashboard generates a machine-specific
+configuration, so Node.js and database paths do not need to be edited manually.
+
+### Copy your configuration
+
+1. Start ContextVault and open http://localhost:3737.
+2. Click **Settings** in the dashboard header.
+3. Under **AI Integrations**, click **Copy MCP Configuration**.
+4. Paste the copied JSON into your AI client's MCP configuration file.
+5. Save the file and restart the desktop application.
+
+The generated configuration includes the active Node.js executable, MCP entry
+point, absolute SQLite database path, local Ollama URL, and SQLite runtime option.
+
+### Claude Desktop
+
+Open the Claude Desktop configuration file:
+
+- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+
+Paste the copied JSON into the file. If other MCP servers already exist,
+merge the `contextvault` entry into the existing `mcpServers` object.
+Do not remove your other server configurations.
+
+Save the file and restart Claude Desktop.
+
+### Cursor
+
+For project-specific configuration, create or edit:
+
+~~~text
+.cursor/mcp.json
+~~~
+
+For global configuration, use:
+
+~~~text
+~/.cursor/mcp.json
+~~~
+
+Paste the same copied JSON, save the file, and restart Cursor.
+
+### Available ContextVault tools
+
+- `search_context` — searches locally indexed project context.
+- `index_project` — indexes a local project directory.
+
+The License selector in Settings stores a local display preference only.
+Selecting Pro does not verify a payment or activate paid functionality.
+
 ## API Endpoints
 
 | Method | Endpoint | Purpose |
@@ -114,6 +169,9 @@ See README_MCP.md for MCP desktop client configuration.
 | POST | /api/index | Index a project into the local database |
 | POST | /api/search | Search indexed context semantically |
 | GET | /api/stats | Return indexed file and chunk counts |
+| GET | /api/config/mcp | Generate a machine-specific MCP client configuration |
+| GET | /api/settings/license | Read the local license selection |
+| PUT | /api/settings/license | Save the local license selection |
 | POST | /api/watch | Start live monitoring for a project |
 
 ## Local Storage and Configuration

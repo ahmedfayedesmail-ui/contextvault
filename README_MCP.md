@@ -4,8 +4,8 @@ ContextVault exposes its local project indexing and semantic search features thr
 
 ## Requirements
 
-- Windows 11
-- Node.js 22 LTS
+- Windows 10 22H2 or newer, macOS, or a supported Linux distribution
+- Node.js 22.13.0 or newer
 - Claude Desktop with MCP support
 - Ollama running locally
 - The \`nomic-embed-text\` embedding model
@@ -25,34 +25,32 @@ ollama pull nomic-embed-text
 
 Make sure Ollama is running before using the MCP tools.
 
-## Configure Claude Desktop
+## Configure Claude Desktop and Cursor
 
-1. Open the Claude Desktop configuration folder by entering \`%APPDATA%\\Claude\` in File Explorer.
-2. Create or edit \`claude_desktop_config.json\`.
-3. Add the following server configuration.
-4. Replace \`YOUR_USER\` and the project path with the actual Windows account name and ContextVault folder.
-5. Save the file and restart Claude Desktop.
+ContextVault generates the correct MCP configuration for your machine.
 
-~~~json
-{
-  "mcpServers": {
-    "contextvault": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "cd /d \\"C:\\\\Users\\\\YOUR_USER\\\\contextvault\\" && npm run --silent mcp"
-      ],
-      "env": {
-        "NODE_OPTIONS": "--experimental-sqlite",
-        "OLLAMA_URL": "http://localhost:11434",
-        "DATABASE_PATH": "C:\\\\Users\\\\YOUR_USER\\\\contextvault\\\\data\\\\contextvault.db"
-      }
-    }
-  }
-}
-~~~
+1. Start ContextVault.
+2. Open http://localhost:3737.
+3. Click **Settings**.
+4. Click **Copy MCP Configuration**.
+5. Open the configuration file for your AI client.
+6. Paste the copied JSON.
+7. If other MCP servers already exist, merge the `contextvault` entry into
+   the existing `mcpServers` object.
+8. Save the file and restart your AI client.
 
-The \`DATABASE_PATH\` value must point to the same ContextVault database used by the local application. Keep the configured project path consistent with where the repository is installed.
+Claude Desktop configuration locations:
+
+- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+
+For Cursor, use the copied JSON in `.cursor/mcp.json` for a project
+configuration or `~/.cursor/mcp.json` for a global configuration.
+
+The generated configuration contains the actual Node.js executable,
+MCP entry point, database path, and Ollama URL for the running installation.
+You do not need to manually edit account-specific or database paths.
 
 ## Available tools
 

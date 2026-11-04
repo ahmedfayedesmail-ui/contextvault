@@ -1,5 +1,7 @@
 import { Router } from "express";
 
+import { existsSync } from "node:fs";
+
 import { randomUUID } from "node:crypto";
 
 import { stat } from "node:fs/promises";
@@ -18,11 +20,67 @@ import { generateEmbedding } from "../indexer/embedder";
 
 import { clearIndexedData, searchVectors } from "../storage/vectors";
 
-import { getSystemStats } from "../storage/db";
+import {
+  getSystemStats,
+  getLicense,
+  setLicense,
+  resolvedDatabasePath
+} from "../storage/db";
 
 import type { ScannedFile } from "../types";
 
 export const apiRouter = Router();
+
+function buildMcpConfiguration() {
+  // src/api in development and dist/api in production both resolve
+  // two levels up to the ContextVault project root.
+  const projectRoot = path.resolve(__dirname, "../..");
+
+  const sourceEntry = path.join(projectRoot, "src", "mcp-entry.ts");
+  const tsxCliPath = path.join(
+    projectRoot,
+    "node_modules",
+    "tsx",
+    "dist",
+    "cli.mjs"
+  );
+  const compiledEntry = path.join(projectRoot, "dist", "mcp-entry.js");
+
+  let args: string[];
+
+  if (existsSync(sourceEntry) && existsSync(tsxCliPath)) {
+    args = [tsxCliPath, sourceEntry];
+  } else if (existsSync(compiledEntry)) {
+    args = [compiledEntry];
+  } else {
+    throw new Error(
+      "ContextVault MCP launch files were not found. " +
+      "Install dependencies or build the application."
+    );
+  }
+
+  const configuredNodeOptions = process.env.NODE_OPTIONS ?? "";
+  const nodeOptions = configuredNodeOptions.includes("--experimental-sqlite")
+    ? configuredNodeOptions
+    : [configuredNodeOptions, "--experimental-sqlite"]
+        .filter(Boolean)
+        .join(" ");
+
+  return {
+    mcpServers: {
+      contextvault: {
+        command: process.execPath,
+        args,
+        env: {
+          DATABASE_PATH: resolvedDatabasePath,
+          OLLAMA_URL: process.env.OLLAMA_URL ?? "http://localhost:11434",
+          NODE_OPTIONS: nodeOptions
+        }
+      }
+    }
+  };
+}
+
 
 // GET /api/stats
 
@@ -41,6 +99,95 @@ apiRouter.get("/stats", (_req, res) => {
         error instanceof Error
           ? error.message
           : "An unexpected error occurred."
+    });
+  }
+});
+
+
+// GET /api/config/mcp
+
+apiRouter.get("/config/mcp", (_req, res) => {
+  try {
+    if (resolvedDatabasePath === ":memory:") {
+      return res.status(409).json({
+        error: "MCP requires a persistent database.",
+        message:
+          "Set DATABASE_PATH to a local SQLite file before connecting MCP."
+      });
+    }
+
+    return res.json(buildMcpConfiguration());
+  } catch (error) {
+    console.error(
+      "[ContextVault] MCP configuration generation failed:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "MCP configuration generation failed",
+      message:
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred."
+    });
+  }
+});
+
+const licenseRequestSchema = z.object({
+  license: z.enum(["Free", "Pro"])
+});
+
+// GET /api/settings/license
+
+apiRouter.get("/settings/license", (_req, res) => {
+  try {
+    return res.json({
+      license: getLicense(),
+      verified: false
+    });
+  } catch (error) {
+    console.error(
+      "[ContextVault] License settings retrieval failed:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Unable to retrieve license settings."
+    });
+  }
+});
+
+// PUT /api/settings/license
+
+apiRouter.put("/settings/license", (req, res) => {
+  const validation = licenseRequestSchema.safeParse(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      error: "Invalid license selection.",
+      details: validation.error.issues
+    });
+  }
+
+  try {
+    const license = setLicense(validation.data.license);
+
+    return res.json({
+      success: true,
+      license,
+      verified: false,
+      message:
+        "This is a local display selection only. " +
+        "It does not activate paid features."
+    });
+  } catch (error) {
+    console.error(
+      "[ContextVault] License settings update failed:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Unable to update license settings."
     });
   }
 });

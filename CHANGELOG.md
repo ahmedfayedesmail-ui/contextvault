@@ -2,6 +2,14 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Session 11 — Settings, Licensing UI, and MCP Setup
+
+- Added a Settings modal with local Free/Pro selection and clear messaging that plan selection does not verify payment or enable paid functionality.
+- Added local SQLite settings storage and license read/write endpoints.
+- Added dynamic MCP configuration generation using the running Node.js executable, MCP entry point, active database path, Ollama URL, and SQLite runtime option.
+- Added one-click MCP configuration copying and setup guidance for Claude Desktop and Cursor.
+- Added settings and MCP configuration API tests.
+
 ## Session 10 — Progressive Indexing and Index Management
 
 - Changed project indexing to a background job API with progress polling and immediate HTTP 202 responses.

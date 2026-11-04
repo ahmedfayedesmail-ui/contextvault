@@ -73,7 +73,40 @@
     .brand {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
+    }
+
+    .brand-identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .settings-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .settings-button:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+    }
+
+    .settings-button span:first-child {
+      font-size: 17px;
     }
 
     .brand-icon {
@@ -333,6 +366,185 @@
       cursor: not-allowed;
     }
 
+    .settings-dialog {
+      width: min(540px, calc(100% - 28px));
+      max-width: 540px;
+      max-height: 90vh;
+      padding: 0;
+      overflow: auto;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 17px;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+    }
+
+    .settings-dialog::backdrop {
+      background: rgba(4, 6, 12, 0.76);
+      backdrop-filter: blur(5px);
+    }
+
+    .settings-content { padding: 24px; }
+
+    .settings-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 25px;
+    }
+
+    .settings-header h2 {
+      margin: 0;
+      font-size: 21px;
+      font-weight: 750;
+    }
+
+    .settings-header p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 8px 0 0;
+    }
+
+    .settings-close {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      background: var(--surface-hover);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .settings-section h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .settings-description {
+      margin: 0 0 15px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .license-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .license-option {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 15px;
+      background: #0d1119;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .license-option:has(input:checked) {
+      border-color: var(--accent);
+      background: rgba(139, 124, 255, 0.09);
+    }
+
+    .license-option input { accent-color: var(--accent); }
+    .license-name { font-size: 15px; font-weight: 750; }
+    .license-description { color: var(--muted); font-size: 11px; }
+
+    .license-note {
+      margin: 13px 0 0;
+      padding: 11px;
+      background: rgba(139, 124, 255, 0.07);
+      border: 1px solid rgba(139, 124, 255, 0.2);
+      border-radius: 9px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .settings-status {
+      min-height: 16px;
+      margin: 9px 0 0;
+      color: var(--success);
+      font-size: 12px;
+    }
+
+    .settings-status.error { color: var(--danger); }
+
+    .settings-divider {
+      height: 1px;
+      margin: 23px 0;
+      background: var(--border);
+    }
+
+    .copy-mcp-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      width: 100%;
+      padding: 13px 16px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .copy-mcp-button:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .copy-mcp-button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .mcp-instructions {
+      margin-top: 17px;
+      padding: 15px;
+      background: #0d1119;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .mcp-instructions strong { font-size: 13px; }
+
+    .mcp-instructions p {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .mcp-instructions code {
+      color: var(--accent);
+      overflow-wrap: anywhere;
+    }
+
+    .settings-footer {
+      padding-top: 18px;
+      margin-top: 22px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    @media (max-width: 540px) {
+      .settings-content { padding: 18px; }
+      .settings-button { padding: 9px 10px; }
+    }
+
     .search-box {
       display: flex;
       align-items: center;
@@ -582,23 +794,122 @@
 
     <header>
       <div class="brand">
-
-        <div class="brand-icon">
-          C
-        </div>
-
-        <div>
-          <div class="brand-name">
-            ContextVault
-          </div>
-
-          <div class="brand-label">
-            Local-first developer memory
+        <div class="brand-identity">
+          <div class="brand-icon">C</div>
+          <div>
+            <div class="brand-name">ContextVault</div>
+            <div class="brand-label">Local-first developer memory</div>
           </div>
         </div>
 
+        <button
+          id="settings-button"
+          class="settings-button"
+          type="button"
+          aria-label="Open Settings"
+        >
+          <span aria-hidden="true">⚙️</span>
+          <span>Settings</span>
+        </button>
       </div>
     </header>
+
+    <dialog
+      id="settings-dialog"
+      class="settings-dialog"
+      aria-labelledby="settings-heading"
+    >
+      <div class="settings-content">
+        <div class="settings-header">
+          <div>
+            <h2 id="settings-heading">ContextVault Settings</h2>
+            <p>Manage your plan and AI integrations.</p>
+          </div>
+          <button
+            id="settings-close"
+            class="settings-close"
+            type="button"
+            aria-label="Close settings"
+          >✕</button>
+        </div>
+
+        <section class="settings-section">
+          <h3>License</h3>
+          <p class="settings-description">
+            Select the plan displayed by ContextVault.
+          </p>
+
+          <div class="license-options">
+            <label class="license-option">
+              <input type="radio" name="license" value="Free">
+              <span class="license-name">Free</span>
+              <span class="license-description">Free plan</span>
+            </label>
+            <label class="license-option">
+              <input type="radio" name="license" value="Pro">
+              <span class="license-name">Pro</span>
+              <span class="license-description">Pro plan</span>
+            </label>
+          </div>
+
+          <p class="license-note">
+            The plan selector is currently a local UI setting.
+            Selecting Pro does not verify payment or activate paid features.
+          </p>
+          <p
+            id="license-status"
+            class="settings-status"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </section>
+
+        <div class="settings-divider"></div>
+
+        <section class="settings-section">
+          <h3>AI Integrations</h3>
+          <p class="settings-description">
+            Connect ContextVault to Claude Desktop or Cursor
+            using the Model Context Protocol.
+          </p>
+
+          <button
+            id="copy-mcp-configuration"
+            class="copy-mcp-button"
+            type="button"
+          >
+            <span aria-hidden="true">📋</span>
+            Copy MCP Configuration
+          </button>
+
+          <p
+            id="mcp-copy-status"
+            class="settings-status"
+            role="status"
+            aria-live="polite"
+          ></p>
+
+          <div class="mcp-instructions">
+            <strong>How to connect</strong>
+            <p>
+              Paste the copied JSON into
+              <code>claude_desktop_config.json</code>
+              to connect your AI assistant.
+            </p>
+            <p>
+              For Cursor, use the same configuration in
+              <code>.cursor/mcp.json</code>
+              or your global Cursor MCP configuration.
+            </p>
+            <p>Save the file and restart the desktop application.</p>
+          </div>
+        </section>
+
+        <div class="settings-footer">
+          ContextVault · Local Settings
+        </div>
+      </div>
+    </dialog>
 
     <section class="hero">
 
@@ -797,6 +1108,14 @@
 
     const onboardingStatus = document.getElementById("onboarding-status");
 
+    const settingsButton = document.getElementById("settings-button");
+    const settingsDialog = document.getElementById("settings-dialog");
+    const settingsClose = document.getElementById("settings-close");
+    const copyMcpButton = document.getElementById("copy-mcp-configuration");
+    const mcpCopyStatus = document.getElementById("mcp-copy-status");
+    const licenseStatus = document.getElementById("license-status");
+    const licenseInputs = document.querySelectorAll('input[name="license"]');
+
     const progressPanel = document.getElementById("index-progress");
     const progressLabel = document.getElementById("index-progress-label");
     const progressPercent = document.getElementById("index-progress-percent");
@@ -825,6 +1144,102 @@
 
       return data;
     }
+
+    async function loadLicenseSettings() {
+      try {
+        const response = await fetch("/api/settings/license");
+        const data = await readJsonResponse(
+          response,
+          "Unable to load license settings."
+        );
+
+        licenseInputs.forEach((input) => {
+          input.checked = input.value === data.license;
+        });
+      } catch (error) {
+        licenseStatus.className = "settings-status error";
+        licenseStatus.textContent =
+          error instanceof Error
+            ? error.message
+            : "Unable to load license settings.";
+      }
+    }
+
+    settingsButton.addEventListener("click", () => {
+      settingsDialog.showModal();
+      void loadLicenseSettings();
+    });
+
+    settingsClose.addEventListener("click", () => {
+      settingsDialog.close();
+    });
+
+    settingsDialog.addEventListener("click", (event) => {
+      if (event.target === settingsDialog) {
+        settingsDialog.close();
+      }
+    });
+
+    licenseInputs.forEach((input) => {
+      input.addEventListener("change", async () => {
+        if (!input.checked) return;
+
+        licenseStatus.className = "settings-status";
+        licenseStatus.textContent = "Saving...";
+
+        try {
+          const response = await fetch("/api/settings/license", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ license: input.value })
+          });
+
+          const result = await readJsonResponse(
+            response,
+            "Unable to save license selection."
+          );
+
+          licenseStatus.textContent = `${result.license} selected.`;
+        } catch (error) {
+          licenseStatus.className = "settings-status error";
+          licenseStatus.textContent =
+            error instanceof Error
+              ? error.message
+              : "Unable to save license selection.";
+
+          await loadLicenseSettings();
+        }
+      });
+    });
+
+    copyMcpButton.addEventListener("click", async () => {
+      copyMcpButton.disabled = true;
+      mcpCopyStatus.className = "settings-status";
+      mcpCopyStatus.textContent = "Generating your MCP configuration...";
+
+      try {
+        const response = await fetch("/api/config/mcp");
+        const configuration = await readJsonResponse(
+          response,
+          "Unable to generate MCP configuration."
+        );
+
+        await navigator.clipboard.writeText(
+          JSON.stringify(configuration, null, 2)
+        );
+
+        mcpCopyStatus.textContent =
+          "Configuration copied successfully. Paste it into your MCP config file.";
+      } catch (error) {
+        mcpCopyStatus.className = "settings-status error";
+        mcpCopyStatus.textContent =
+          error instanceof Error
+            ? error.message
+            : "Unable to copy MCP configuration.";
+      } finally {
+        copyMcpButton.disabled = false;
+      }
+    });
 
     async function refreshStats() {
       try {
