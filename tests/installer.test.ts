@@ -40,6 +40,9 @@ describe('cross-platform distribution files', () => {
     expect(installer).toContain('winget.exe');
     expect(installer).toContain('install --id Ollama.Ollama -e --silent');
     expect(installer).toContain('Get-OllamaExe');
+    expect(installer).toContain('$OllamaExeResults = @(Get-OllamaExe | Select-Object -First 1)');
+    expect(installer).toContain('$OllamaExe = [string]$OllamaExeResults[0]');
+    expect(installer).toContain('Start-Process -FilePath ([string]$OllamaExe)');
     expect(installer).toContain('nomic-embed-text');
     expect(installer).toContain('Get-AuthenticodeSignature');
   });

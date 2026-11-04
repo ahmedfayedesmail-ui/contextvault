@@ -254,8 +254,10 @@ function Install-Ollama {
         & $WingetExe install --id Ollama.Ollama -e --silent --accept-package-agreements --accept-source-agreements
         $WingetExitCode = $LASTEXITCODE
 
-        $InstalledOllama = Get-OllamaExe
-        if ($InstalledOllama) { return $InstalledOllama }
+        $InstalledOllamaResults = @(Get-OllamaExe | Select-Object -First 1)
+        if ($InstalledOllamaResults.Count -gt 0) {
+            return [string]$InstalledOllamaResults[0]
+        }
 
         if ($WingetExitCode -ne 0) {
             Write-Host "winget returned exit code $WingetExitCode. Trying the official signed installer..." -ForegroundColor Yellow
@@ -278,9 +280,9 @@ function Install-Ollama {
     Remove-Item -LiteralPath $InstallerPath -Force -ErrorAction SilentlyContinue
     if ($Setup.ExitCode -ne 0) { throw "Ollama setup failed with exit code $($Setup.ExitCode)." }
 
-    $InstalledOllama = Get-OllamaExe
-    if (-not $InstalledOllama) { throw 'Ollama setup finished, but ollama.exe could not be found.' }
-    return $InstalledOllama
+    $InstalledOllamaResults = @(Get-OllamaExe | Select-Object -First 1)
+    if ($InstalledOllamaResults.Count -eq 0) { throw 'Ollama setup finished, but ollama.exe could not be found.' }
+    return [string]$InstalledOllamaResults[0]
 }
 
 function Test-OllamaApi {
@@ -332,15 +334,24 @@ try {
     }
 
     Write-Info 'Locating Ollama...'
-    $OllamaExe = Get-OllamaExe
-    if (-not $OllamaExe) { $OllamaExe = Install-Ollama }
+    $OllamaExeResults = @(Get-OllamaExe | Select-Object -First 1)
+    if ($OllamaExeResults.Count -eq 0) {
+        $OllamaExeResults = @(Install-Ollama | Select-Object -First 1)
+    }
+    if ($OllamaExeResults.Count -eq 0) {
+        throw 'Ollama executable could not be resolved after installation.'
+    }
+
+    # Force a single absolute String path so Start-Process never receives an Object[].
+    $OllamaExe = [string]$OllamaExeResults[0]
+    $OllamaExe = [IO.Path]::GetFullPath($OllamaExe)
     if (-not (Test-Path -LiteralPath $OllamaExe -PathType Leaf)) {
         throw "Ollama executable was not found at $OllamaExe."
     }
 
     if (-not (Test-OllamaApi)) {
         Write-Info 'Starting Ollama in the background...'
-        Start-Process -FilePath $OllamaExe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
+        Start-Process -FilePath ([string]$OllamaExe) -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
         Start-Sleep -Seconds 3
 
         $OllamaReady = $false

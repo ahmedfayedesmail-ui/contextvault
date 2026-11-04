@@ -2,6 +2,12 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Ollama Executable Path Hotfix
+
+- Normalized Ollama discovery and installer results to the first absolute executable path as a single PowerShell String.
+- Passed the scalar executable path explicitly to Start-Process and used it for model commands, preventing Object[] parameter binding failures.
+- Added regression assertions for scalar Ollama path resolution.
+
 ## Windows Node.js Hotfix
 
 - Replaced PowerShell command discovery with direct absolute-path discovery and execution of `node.exe`, including standard MSI, registry, NVM, FNM, Volta, Scoop, and ContextVault-managed runtime locations.
