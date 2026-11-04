@@ -71,8 +71,8 @@ describe('cross-platform distribution files', () => {
     expect(launcher).toContain('ollama pull nomic-embed-text');
     expect(launcher).toContain('goto wait_for_ollama');
     expect(launcher).toContain('goto ollama_pull_failed');
-    expect(launcher).toContain('if not exist "node_modules\\\\." (');
-    expect(launcher).toContain('%LOCALAPPDATA%\\\\Ollama\\\\ollama.exe');
+    expect(launcher).toContain('if not exist "node_modules\\." (');
+    expect(launcher).toContain('%LOCALAPPDATA%\\Ollama\\ollama.exe');
     expect(launcher).toContain('set "MODEL_CHECK_AFTER_PULL=1"');
     expect(launcher).toContain('goto run_ollama_list');
     expect(launcher).toContain('goto ollama_model_verify_failed');
