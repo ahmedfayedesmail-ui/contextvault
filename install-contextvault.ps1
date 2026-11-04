@@ -349,8 +349,12 @@ try {
         throw "Ollama executable was not found at $OllamaExe."
     }
 
-    # Keep the Ollama executable reference scalar and use the same value for serve/list/pull.
+    # Prefer the standard per-user install path, then the discovered executable, then PATH.
+    # Keep the value scalar so Start-Process never receives an Object[].
     $OllamaExePath = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
+    if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {
+        $OllamaExePath = [string]$OllamaExe
+    }
     if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {
         $OllamaExePath = 'ollama'
     }
@@ -358,9 +362,9 @@ try {
     if (-not (Test-OllamaApi)) {
         Write-Info 'Starting Ollama in the background...'
         if (Test-Path -LiteralPath $OllamaExePath -PathType Leaf) {
-            Start-Process -FilePath $OllamaExePath -ArgumentList "serve" -WindowStyle Hidden | Out-Null
+            Start-Process -FilePath ([string]$OllamaExePath) -ArgumentList "serve" -WindowStyle Hidden | Out-Null
         } else {
-            Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
+            Start-Process -FilePath 'ollama' -ArgumentList 'serve' -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
             $OllamaExePath = 'ollama'
         }
         Start-Sleep -Seconds 3

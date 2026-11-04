@@ -45,8 +45,9 @@ describe('cross-platform distribution files', () => {
     expect(installer).toContain('$OllamaExePath = "$env:LOCALAPPDATA\\Programs\\Ollama\\ollama.exe"');
     expect(installer).toContain("if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {");
     expect(installer).toContain("$OllamaExePath = 'ollama'");
-    expect(installer).toContain('Start-Process -FilePath $OllamaExePath -ArgumentList "serve" -WindowStyle Hidden');
-    expect(installer).toContain('Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden -ErrorAction SilentlyContinue');
+    expect(installer).toContain('$OllamaExePath = [string]$OllamaExe');
+    expect(installer).toContain('Start-Process -FilePath ([string]$OllamaExePath) -ArgumentList "serve" -WindowStyle Hidden');
+    expect(installer).toContain("Start-Process -FilePath 'ollama' -ArgumentList 'serve' -WindowStyle Hidden -ErrorAction SilentlyContinue");
     expect(installer).toContain('$ModelList = & $OllamaExePath list 2>&1');
     expect(installer).toContain('& $OllamaExePath pull nomic-embed-text');
     expect(installer).toContain("Replace('__OLLAMA_EXE__', $OllamaExePath)");
@@ -61,11 +62,16 @@ describe('cross-platform distribution files', () => {
     expect(packageJson.engines.node).toBe('>=22.13.0');
   });
 
-  it('keeps the Windows launcher simple and opens the local browser', () => {
+  it('checks and downloads the Ollama embedding model before opening the Windows app', () => {
     const launcher = readFileSync(path.join(projectRoot, 'start-contextvault.bat'), 'utf8');
+    expect(launcher).toContain('http://localhost:11434/api/tags');
+    expect(launcher).toContain('ollama list');
+    expect(launcher).toContain('ollama pull nomic-embed-text');
+    expect(launcher).toContain('goto wait_for_ollama');
+    expect(launcher).toContain('goto ollama_pull_failed');
     expect(launcher).toContain('npm run dev');
-    expect(launcher).toContain('timeout /t 3');
     expect(launcher).toContain('http://localhost:3737');
+    expect(launcher.indexOf('ollama pull nomic-embed-text')).toBeLessThan(launcher.indexOf('start "" "http://localhost:3737"'));
   });
 
   it('prepares macOS and Linux dependencies', () => {

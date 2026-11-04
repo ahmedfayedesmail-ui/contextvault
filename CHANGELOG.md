@@ -2,6 +2,13 @@
 
 All notable ContextVault changes are documented here by development session.
 
+## Windows Ollama Model Readiness Hotfix
+
+- Hardened installer Ollama startup to pass an explicit scalar executable path to `Start-Process`, retaining standard, discovered-location, and PATH fallbacks.
+- Made the Windows batch launcher start or reuse Ollama, wait for its API, check `ollama list`, and synchronously pull `nomic-embed-text` when missing.
+- The launcher now withholds browser startup until the embedding model is ready and the ContextVault health endpoint responds.
+- Added regression coverage for model readiness and download ordering.
+
 ## Ollama Start-Process Hotfix
 
 - Replaced the Windows Ollama background launch with an explicit per-user executable path and a scalar `ollama` command fallback.
