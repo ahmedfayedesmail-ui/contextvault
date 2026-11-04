@@ -1,0 +1,21 @@
+services:
+  contextvault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: contextvault
+    restart: unless-stopped
+    ports:
+      - "3737:3737"
+    environment:
+      PORT: "3737"
+      OLLAMA_URL: "http://127.0.0.1:11434"
+      DATABASE_PATH: "/app/data/contextvault.db"
+      NODE_OPTIONS: "--experimental-sqlite"
+    volumes:
+      - contextvault-data:/app/data
+      - ollama-data:/root/.ollama
+
+volumes:
+  contextvault-data:
+  ollama-data:
