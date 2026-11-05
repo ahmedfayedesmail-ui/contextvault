@@ -58,8 +58,8 @@ Exercise both supported paths. Use a disposable VM snapshot or separate disposab
    winget install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements
    ```
    and then display **Ollama installed successfully.**
-4. If winget is missing or returns a failure, the installer should open `https://ollama.com/download/windows`, print the manual-install instructions, stop without waiting indefinitely, and return without continuing to model download or npm installation.
-5. In the fallback case, install Ollama from the opened official page, then run `install-contextvault.ps1` again. The already-prepared ContextVault-managed Node.js runtime should be reused.
+4. If winget is missing or returns a failure, the installer should open `https://ollama.com/download/windows`, print the manual-install instructions, ask for Enter only to close the visible installer window, then exit with code `0` without continuing to model download or npm installation.
+5. In the fallback case, install Ollama from the opened official page, return to the installer window and press Enter, then run `install-contextvault.ps1` again. The already-prepared ContextVault-managed Node.js runtime should be reused.
 
 **Scenario B — Ollama is already installed**
 1. Install Ollama in the disposable test environment before running the ContextVault installer.
@@ -114,7 +114,7 @@ Record which path ran in the final report. A successful fallback handoff is a pa
 **Change made in this PR:** The direct Ollama executable download has been removed. The installer now:
 - Detects an existing Ollama installation and skips installation.
 - Uses `winget install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements` as the primary installation path, with package-manager output visible in the console.
-- If winget is unavailable or fails, opens the official Ollama Windows download page, prints the exact manual-install/re-run instruction, stops the installer cleanly, and does not wait on a hidden download.
+- If winget is unavailable or fails, opens the official Ollama Windows download page, prints the exact manual-install/re-run instruction, waits only for the user to acknowledge the visible message, exits with code `0`, and does not wait on a hidden download.
 
 **Validation status:** This is an implementation change, not a verified resolution yet. Re-run Scenario A and Scenario B in a clean disposable environment and keep PR #1 in Draft until both paths and the full installation flow have passed.
 
