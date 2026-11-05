@@ -1,7 +1,9 @@
 import { scanProject, chunkFile } from "./fileWatcher";
-import { generateEmbedding } from "./embedder";
+import { generateEmbeddingBatch } from "./embedder";
 import { saveIndexedData } from "../storage/vectors";
 import type { ProjectFile } from "../types";
+
+const EMBEDDING_BATCH_SIZE = 16;
 
 export interface IndexProjectResult {
   filesCount: number;
@@ -20,6 +22,39 @@ export interface IndexProjectProgress {
 export type IndexProgressCallback = (
   progress: IndexProjectProgress
 ) => void;
+
+async function embedChunksInBatches(
+  chunks: ReturnType<typeof chunkFile>,
+  onBatchComplete?: (completedInFile: number) => void
+): Promise<number[][]> {
+  const embeddings: number[][] = [];
+
+  for (
+    let offset = 0;
+    offset < chunks.length;
+    offset += EMBEDDING_BATCH_SIZE
+  ) {
+    const batch = chunks.slice(
+      offset,
+      offset + EMBEDDING_BATCH_SIZE
+    );
+
+    const batchEmbeddings = await generateEmbeddingBatch(
+      batch.map((chunk) => chunk.content)
+    );
+
+    if (batchEmbeddings.length !== batch.length) {
+      throw new Error(
+        `Embedding batch returned ${batchEmbeddings.length} vectors for ${batch.length} chunks.`
+      );
+    }
+
+    embeddings.push(...batchEmbeddings);
+    onBatchComplete?.(embeddings.length);
+  }
+
+  return embeddings;
+}
 
 export async function indexProject(
   rootPath: string,
@@ -47,6 +82,9 @@ export async function indexProject(
 
   console.info(`[ContextVault] Found ${files.length} files.`);
   console.info(`[ContextVault] Generated ${totalChunks} chunks.`);
+  console.info(
+    `[ContextVault] Embedding batch size: ${EMBEDDING_BATCH_SIZE} chunks per Ollama request.`
+  );
 
   onProgress?.({
     stage: "embedding",
@@ -59,7 +97,7 @@ export async function indexProject(
 
   for (const file of files) {
     const chunks = chunkFile(file);
-    const embeddings: number[][] = [];
+    let completedChunksInFile = 0;
 
     onProgress?.({
       stage: "embedding",
@@ -70,12 +108,23 @@ export async function indexProject(
       currentFile: file.path
     });
 
-    for (const chunk of chunks) {
-      embeddings.push(await generateEmbedding(chunk.content));
-    }
+    const embeddings = await embedChunksInBatches(
+      chunks,
+      (fileBatchProgress) => {
+        completedChunksInFile = fileBatchProgress;
+        onProgress?.({
+          stage: "embedding",
+          totalFiles: files.length,
+          completedFiles,
+          totalChunks,
+          completedChunks: completedChunks + completedChunksInFile,
+          currentFile: file.path
+        });
+      }
+    );
 
-    // Commit a complete file atomically instead of retaining the whole
-    // project's embeddings in memory until the final file is processed.
+    // Commit each complete file atomically. A failed batch does not persist
+    // a partially embedded version of the current file.
     saveIndexedData([file], chunks, embeddings);
 
     completedFiles++;
@@ -108,11 +157,6 @@ export async function indexSingleFile(
   file: ProjectFile
 ): Promise<void> {
   const chunks = chunkFile(file);
-  const embeddings: number[][] = [];
-
-  for (const chunk of chunks) {
-    embeddings.push(await generateEmbedding(chunk.content));
-  }
-
+  const embeddings = await embedChunksInBatches(chunks);
   saveIndexedData([file], chunks, embeddings);
 }
