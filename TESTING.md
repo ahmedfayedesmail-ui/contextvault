@@ -68,7 +68,8 @@ Run the sections in order in one planned test session. Use a disposable Windows 
    Confirm the model list contains `nomic-embed-text`.
 
 9. Confirm a **ContextVault** shortcut was created on the current Windows user's Desktop. Close the browser and use the shortcut once to check that the app can be started again.
-10. Confirm the local database was created under the extracted project folder at `data\contextvault.db`. Do not put real customer or confidential source code into this test database.
+10. With ContextVault already running, double-click `start-contextvault.bat` in the extracted project root. It should reuse the healthy local dashboard rather than start a duplicate server, then open the dashboard in the browser.
+11. Confirm the local database was created under the extracted project folder at `data\contextvault.db`. Do not put real customer or confidential source code into this test database.
 
 ### Fresh-install pass conditions
 
