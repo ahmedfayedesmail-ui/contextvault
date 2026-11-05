@@ -259,7 +259,13 @@ export async function generateEmbeddingBatch(
 export async function generateEmbedding(
   text: string
 ): Promise<number[]> {
-  const [embedding] = await generateEmbeddingBatch([text]);
+  const embeddings = await generateEmbeddingBatch([text]);
+  const embedding = embeddings[0];
+
+  if (!embedding) {
+    throw new Error("Ollama did not return an embedding for the input text.");
+  }
+
   return embedding;
 }
 
