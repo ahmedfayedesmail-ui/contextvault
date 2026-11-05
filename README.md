@@ -144,7 +144,7 @@ ContextVault includes a local MCP server for compatible desktop clients. The das
 
 Common configuration file locations:
 
-- **Windows:** `%APPDATA%\\Claude\\claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Linux:** `~/.config/Claude/claude_desktop_config.json`
 
