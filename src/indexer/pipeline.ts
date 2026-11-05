@@ -122,7 +122,7 @@ export async function indexProject(
     while (nextFileToPersist < fileStates.length) {
       const state = fileStates[nextFileToPersist];
 
-      if (state.completedChunks !== state.chunks.length) {
+      if (!state || state.completedChunks !== state.chunks.length) {
         break;
       }
 
@@ -168,8 +168,13 @@ export async function indexProject(
     for (let index = 0; index < batch.length; index++) {
       const item = batch[index];
       const state = fileStates[item.fileIndex];
+      const embedding = batchEmbeddings[index];
 
-      state.embeddings.push(batchEmbeddings[index]);
+      if (!state || !embedding) {
+        throw new Error("Ollama returned an incomplete embedding batch.");
+      }
+
+      state.embeddings.push(embedding);
       state.completedChunks++;
     }
 
