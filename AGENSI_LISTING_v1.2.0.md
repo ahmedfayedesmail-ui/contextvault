@@ -99,6 +99,62 @@ Only index project folders you own or are authorized to inspect. Avoid indexing 
 - **Installation and MCP setup:** https://github.com/ahmedfayedesmail-ui/contextvault/blob/main/README_MCP.md
 - **Agensi listing:** https://www.agensi.io/skills/contextvault
 
+## Compatibility note — proposed field copy
+
+Requires ContextVault to be installed locally on the same computer as the AI client. The local setup uses Node.js 22.13+, Ollama with `nomic-embed-text`, and the ContextVault MCP server. The current setup guide documents Claude Desktop and Cursor. The Agensi skill itself does not install the application or configure the local MCP connection. Cloud/mobile agents that cannot launch a local stdio MCP server cannot directly access the local ContextVault index.
+
+## See it in action — proposed demo
+
+**The request (what the buyer types)**
+
+```text
+Search the indexed ContextVault project for the project-indexing workflow. Explain how files are scanned, embedded, stored in SQLite, and monitored for changes. Include the relevant files and retrieved documentation snippets.
+```
+
+**The result (what the agent delivers)**
+
+```text
+CONTEXTVAULT — INDEXING & SEMANTIC SEARCH
+
+ContextVault successfully indexed a local project and created a searchable codebase index.
+
+INDEXING RESULTS
+Files indexed: 48
+Text chunks saved: 255
+Indexing progress: 100%
+Live monitoring: Active
+
+SEARCH RESULTS
+A semantic search for "index" completed successfully and returned 5 results.
+
+Relevant results visible in the verified example included:
+- README.md — 64.3% match: project indexing workflow, local embeddings, SQLite storage, and live monitoring.
+- README_MCP.md — 61.0% match: the index_project MCP tool and its required absolute project path.
+- CHANGELOG.md — 60.3% match: progressive indexing, background jobs, progress tracking, persistence, and index management.
+
+The local dashboard displayed the completed index and the retrieved documentation snippets. The file counts and match percentages above belong to this specific recorded example; they are not a general performance benchmark or a promise for every project.
+```
+
+Use this result only while the matching recorded demo remains available on the listing. Replace it with a fresh complete result if the live preview changes.
+
+## Documentation URL
+
+https://github.com/ahmedfayedesmail-ui/contextvault/blob/main/README_MCP.md
+
+## Permissions — recommended review before submission
+
+The skill instructions use the two local ContextVault MCP tools and do not edit source files or run shell commands themselves. Review Agensi's auto-detected permissions before submitting:
+
+- Do **not** grant Write Files for this skill.
+- Do **not** grant Terminal / Shell or Browser access unless a future, documented skill feature truly requires them.
+- Do not add account/service access; none is required by the current local workflow.
+- Read Files and Network Access should be enabled only if Agensi's own permission model requires them for the selected installation/connection flow. They do not replace or configure the local ContextVault MCP server.
+- The local MCP server itself reads the explicitly authorized project path to index it. The AI client must separately authorize and connect to that local server.
+
+## Screenshots and demo video
+
+Use the redacted ContextVault application screenshot as the primary image. Use the real indexing and search result screenshots as supporting images. Ensure no screenshot exposes a Windows username, absolute personal directory path, tokens, or private project data. No demo video URL is included in this draft.
+
 ## FAQ — proposed answers
 
 **Does the Agensi skill install ContextVault for me?**  
