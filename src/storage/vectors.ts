@@ -1,4 +1,5 @@
 import database from "./db";
+import path from "node:path";
 
 import type {
   ProjectFile,
@@ -43,7 +44,8 @@ interface FileIdRow {
 export function saveIndexedData(
   files: ProjectFile[],
   chunks: TextChunk[],
-  embeddings: number[][]
+  embeddings: number[][],
+  rootPath: string = ""
 ): void {
 
   if (chunks.length !== embeddings.length) {
@@ -84,14 +86,16 @@ export function saveIndexedData(
   const upsertFile = database.prepare(`
     INSERT INTO files (
       path,
+      root_path,
       content,
       mtime,
       size,
       language
     )
-    VALUES (?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?)
 
     ON CONFLICT(path) DO UPDATE SET
+      root_path = excluded.root_path,
       content = excluded.content,
       mtime = excluded.mtime,
       size = excluded.size,
@@ -130,6 +134,7 @@ export function saveIndexedData(
     for (const file of files) {
       upsertFile.run(
         file.path,
+        rootPath ? path.resolve(rootPath) : "",
         file.content,
         file.mtime.toISOString(),
         file.size,
@@ -195,6 +200,88 @@ export function saveIndexedData(
     database.exec("ROLLBACK");
     throw error;
   }
+}
+
+
+interface ProjectFileRow {
+  id: number | bigint;
+  path: string;
+}
+
+interface ProjectChunkCountRow {
+  count: number | bigint;
+}
+
+export interface PruneProjectIndexResult {
+  deletedFiles: number;
+  deletedChunks: number;
+}
+
+/**
+ * Remove records for files that disappeared from a successfully scanned project.
+ * Called only after every current file has been embedded and persisted, so an
+ * embedding failure never erases the previous complete index.
+ */
+export function pruneProjectIndex(
+  rootPath: string,
+  currentFilePaths: string[]
+): PruneProjectIndexResult {
+  const normalizedRoot = path.resolve(rootPath);
+  const currentPaths = new Set(
+    currentFilePaths.map((filePath) => path.normalize(filePath))
+  );
+
+  const existingFiles = database.prepare(`
+    SELECT id, path
+    FROM files
+    WHERE root_path = ?
+  `).all(normalizedRoot) as ProjectFileRow[];
+
+  const staleFiles = existingFiles.filter(
+    (file) => !currentPaths.has(path.normalize(file.path))
+  );
+
+  if (staleFiles.length === 0) {
+    return { deletedFiles: 0, deletedChunks: 0 };
+  }
+
+  const countChunks = database.prepare(`
+    SELECT COUNT(*) AS count
+    FROM chunks
+    WHERE file_id = ?
+  `);
+
+  const deleteFile = database.prepare(`
+    DELETE FROM files
+    WHERE id = ? AND root_path = ?
+  `);
+
+  let deletedChunks = 0;
+  database.exec("BEGIN IMMEDIATE");
+
+  try {
+    for (const file of staleFiles) {
+      const chunkCount = countChunks.get(file.id) as
+        | ProjectChunkCountRow
+        | undefined;
+      deletedChunks += Number(chunkCount?.count ?? 0);
+      deleteFile.run(file.id, normalizedRoot);
+    }
+
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  console.info(
+    `[ContextVault] Removed ${staleFiles.length} stale files and ${deletedChunks} chunks from ${normalizedRoot}.`
+  );
+
+  return {
+    deletedFiles: staleFiles.length,
+    deletedChunks
+  };
 }
 
 interface ClearIndexCountRow {
