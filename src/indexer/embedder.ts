@@ -127,7 +127,7 @@ export async function generateEmbeddingBatch(
   const baseUrl = (
     process.env.OLLAMA_URL ??
     "http://localhost:11434"
-  ).replace(/\\/+$/, "");
+  ).replace(/\/+$/, "");
 
   const endpoint = `${baseUrl}/api/embed`;
   const timeoutMs = getEmbeddingTimeoutMs();
