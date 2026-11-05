@@ -137,6 +137,20 @@ If more than one project is indexed into the same local database, `search_contex
 - When the MCP server returns relevant code snippets to an AI client, those snippets enter the AI provider's context and may be processed under that provider's own terms and data-handling settings. Do not describe the whole workflow as fully offline unless the connected AI model is also local.
 - ContextVault writes index data to its local SQLite database; it does not edit the project's source files during indexing.
 
+## Embedding performance and diagnostics
+
+When the local dashboard starts, ContextVault sends a small background warm-up embedding request to Ollama. This loads `nomic-embed-text` before the first user search without delaying the dashboard from opening. The warm-up is non-fatal: if Ollama is unavailable, the app still starts and logs the reason.
+
+Embedding requests keep the model loaded for 30 minutes by default. The request timeout defaults to 120 seconds. You can override these settings with environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama should keep the embedding model loaded after a request. |
+| `OLLAMA_EMBED_TIMEOUT_MS` | `120000` | Maximum time to wait for one embedding request. Values below 1000 are ignored. |
+| `OLLAMA_URL` | `http://localhost:11434` | Local Ollama API base URL. |
+
+ContextVault logs the wall-clock embedding duration for every successful request. When Ollama returns timing metadata, the log also includes model-load and total server time. Timeout and HTTP errors are logged with elapsed time and a clear error message. Use these logs to distinguish model-load delay from ongoing embedding latency; warm-up may reduce cold-start delay but does not guarantee a fixed search time on every computer.
+
 ## Troubleshooting
 
 - **The tools are missing after restart:** Confirm the ContextVault app is running; open Settings → AI Integrations → Copy MCP Configuration again; ensure the generated entry was merged into the correct client config; then fully restart the client.
