@@ -246,11 +246,11 @@ describe("saveIndexedData", () => {
     };
     const otherProjectFile: ProjectFile = {
       ...testFile,
-      path: "lib/other-project.ts"
+      path: "src/current.ts"
     };
     const otherProjectChunk: TextChunk = {
       ...testChunks[0],
-      filePath: "lib/other-project.ts"
+      filePath: "src/current.ts"
     };
 
     saveIndexedData(
@@ -277,12 +277,12 @@ describe("saveIndexedData", () => {
     });
 
     const remainingFiles = database.prepare(`
-      SELECT path, root_path FROM files ORDER BY path
+      SELECT path, root_path FROM files ORDER BY root_path
     `).all() as Array<{ path: string; root_path: string }>;
 
     expect(remainingFiles).toEqual([
-      { path: "lib/other-project.ts", root_path: otherRoot },
-      { path: "src/current.ts", root_path: currentRoot }
+      { path: "src/current.ts", root_path: currentRoot },
+      { path: "src/current.ts", root_path: otherRoot }
     ]);
 
     const remainingChunks = database.prepare(`
