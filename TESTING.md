@@ -9,7 +9,7 @@ Run the sections in order in one planned test session. Use a disposable Windows 
 ## 1. Before starting
 
 1. Use a disposable Windows 10 22H2 or Windows 11 machine/VM. Take a VM snapshot first if available.
-2. Make sure the computer has an internet connection. The first installation downloads Node.js, Ollama, the `nomic-embed-text` model, and npm packages. The model download may take time and disk space.
+2. Make sure the computer has an internet connection. The first installation may prepare Node.js, install Ollama through winget (or direct the user to Ollama's official download page if winget is unavailable or fails), download the `nomic-embed-text` model, and install npm packages. The model download may take time and disk space.
 3. Sign in using the Windows account that will own the ContextVault installation. The installer is designed to prepare a per-user Node.js runtime and create a shortcut for that user.
 4. Open PowerShell and check whether Node.js and Ollama are already installed:
 
@@ -40,11 +40,33 @@ Run the sections in order in one planned test session. Use a disposable Windows 
 4. Let the installer complete. It should show numbered stages for:
    - Checking the extracted project.
    - Finding or preparing Node.js 22.13 or newer.
-   - Finding or installing Ollama.
+   - Checking for Ollama, then either skipping installation, installing with winget, or opening the official manual-install page and stopping cleanly.
    - Starting Ollama and checking the local service.
    - Checking or downloading `nomic-embed-text`.
    - Installing and verifying ContextVault npm dependencies.
    - Creating the ContextVault desktop shortcut and launching the app.
+
+### Ollama installation scenarios to verify
+
+Exercise both supported paths. Use a disposable VM snapshot or separate disposable environment for each path; do not uninstall Ollama from a daily-use computer.
+
+**Scenario A — Ollama is not installed**
+1. Confirm Ollama is not present in the standard install locations and that `Get-Command ollama -ErrorAction SilentlyContinue` returns no command.
+2. Run the installer.
+3. If winget is available, the installer should display **Installing Ollama via winget...**, run:
+   ```powershell
+   winget install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements
+   ```
+   and then display **Ollama installed successfully.**
+4. If winget is missing or returns a failure, the installer should open `https://ollama.com/download/windows`, print the manual-install instructions, stop without waiting indefinitely, and return without continuing to model download or npm installation.
+5. In the fallback case, install Ollama from the opened official page, then run `install-contextvault.ps1` again. The already-prepared ContextVault-managed Node.js runtime should be reused.
+
+**Scenario B — Ollama is already installed**
+1. Install Ollama in the disposable test environment before running the ContextVault installer.
+2. Run `install-contextvault.ps1`.
+3. Confirm the installer displays **Ollama found, skipping download.** and does not invoke winget or open the manual download page.
+
+Record which path ran in the final report. A successful fallback handoff is a pass for fallback behavior, but the complete fresh-install test remains pending until Ollama is installed and the installer is rerun to completion.
 
 5. Accept normal Windows or package-manager installation prompts when they appear. Do not disable Windows security protections. If Windows blocks the script, stop and record the exact message rather than changing system-wide execution policy.
 6. Wait for the browser to open the local dashboard. The expected address is:
@@ -76,11 +98,25 @@ Run the sections in order in one planned test session. Use a disposable Windows 
 - The installer finishes without a PowerShell error.
 - Node.js 22.13+ is available to ContextVault. On a machine without Node.js, the managed runtime should be under `%LOCALAPPDATA%\ContextVault\runtime`.
 - Ollama is running and `nomic-embed-text` appears in `/api/tags`.
+- The applicable Ollama path (preinstalled, winget, or manual fallback followed by rerun) is recorded and behaves as specified.
 - npm dependencies are installed and the dashboard responds with `status: ok`.
 - The Desktop shortcut starts ContextVault again.
 - The installer log is present under `%LOCALAPPDATA%\ContextVault\logs`.
 
-**Important:** This is an install-from-source/repository ZIP flow, not a signed MSI or a single self-contained offline installer. The user downloads and extracts the repository, starts the PowerShell installer, and must allow the required downloads and installer prompts.
+**Important:** This is an install-from-source/repository ZIP flow, not a signed MSI or a single self-contained offline installer. The user downloads and extracts the repository, starts the PowerShell installer, and must allow the required downloads and installer prompts. Ollama itself is not downloaded by `Invoke-WebRequest`; winget is the primary installation route, with an official-browser fallback and a clean installer stop if winget is missing or fails.
+
+## Known Installation Issues & Solutions
+
+### Ollama installer download could stall
+
+**Observed issue:** The previous Windows installer downloaded the large `OllamaSetup.exe` directly with PowerShell `Invoke-WebRequest`. That download did not expose useful progress or provide a reliable resume path in the tested environment; the network receive rate reached 0 Kbps while the installer remained on the first download attempt.
+
+**Change made in this PR:** The direct Ollama executable download has been removed. The installer now:
+- Detects an existing Ollama installation and skips installation.
+- Uses `winget install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements` as the primary installation path, with package-manager output visible in the console.
+- If winget is unavailable or fails, opens the official Ollama Windows download page, prints the exact manual-install/re-run instruction, stops the installer cleanly, and does not wait on a hidden download.
+
+**Validation status:** This is an implementation change, not a verified resolution yet. Re-run Scenario A and Scenario B in a clean disposable environment and keep PR #1 in Draft until both paths and the full installation flow have passed.
 
 ## 3. Test B — MCP Inspector connection and tool discovery
 
@@ -270,6 +306,10 @@ Copy this section into the review when all checks have been run:
 
 - Fresh install: PASS / FAIL — notes:
 - Dashboard health: PASS / FAIL — notes:
+- Ollama installation path (preinstalled / winget / manual fallback):
+- Winget available and exit code:
+- Existing Ollama skip message: PASS / FAIL / N/A
+- Manual fallback browser + clean exit: PASS / FAIL / N/A
 - Ollama model present: PASS / FAIL — notes:
 - MCP connection: PASS / FAIL — notes:
 - Tool discovery: PASS / FAIL — notes:
