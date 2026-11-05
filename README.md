@@ -132,7 +132,7 @@ See the [official Ollama Windows requirements](https://docs.ollama.com/windows) 
 
 ### Embedding performance
 
-ContextVault warms the local Ollama embedding model when the dashboard starts and keeps it loaded for 30 minutes by default. Successful embedding requests log elapsed time and, when available, Ollama's model-load timing. Logs are saved to `%LOCALAPPDATA%\\ContextVault\\logs\\embedding.log` on Windows, `~/Library/Logs/ContextVault/embedding.log` on macOS, or `~/.local/state/contextvault/logs/embedding.log` on Linux.
+ContextVault warms the local Ollama embedding model when the dashboard or local MCP server starts and keeps it loaded for 30 minutes by default. Successful embedding requests log elapsed time and, when available, Ollama's model-load timing. Logs are saved to `%LOCALAPPDATA%\\ContextVault\\logs\\embedding.log` on Windows, `~/Library/Logs/ContextVault/embedding.log` on macOS, or `~/.local/state/contextvault/logs/embedding.log` on Linux.
 
 - `OLLAMA_KEEP_ALIVE` — defaults to `30m`.
 - `OLLAMA_EMBED_TIMEOUT_MS` — defaults to `120000` (120 seconds).
