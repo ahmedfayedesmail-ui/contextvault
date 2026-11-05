@@ -8,6 +8,7 @@ import {
 } from "vitest";
 
 import type { DatabaseSync } from "node:sqlite";
+import path from "node:path";
 
 import type {
   ProjectFile,
@@ -19,8 +20,14 @@ let database: DatabaseSync;
 let saveIndexedData: (
   files: ProjectFile[],
   chunks: TextChunk[],
-  embeddings: number[][]
+  embeddings: number[][],
+  rootPath?: string
 ) => void;
+
+let pruneProjectIndex: (
+  rootPath: string,
+  currentFilePaths: string[]
+) => { deletedFiles: number; deletedChunks: number };
 
 const originalDatabasePath =
   process.env.DATABASE_PATH;
@@ -59,6 +66,7 @@ beforeAll(async () => {
   );
 
   saveIndexedData = vectorsModule.saveIndexedData;
+  pruneProjectIndex = vectorsModule.pruneProjectIndex;
 });
 
 beforeEach(() => {
@@ -214,6 +222,74 @@ describe("saveIndexedData", () => {
     expect(fileCount.count).toBe(0);
 
     expect(chunkCount.count).toBe(0);
+  });
+
+  it("should remove stale files and cascade-delete their chunks for one project only", () => {
+    const currentRoot = path.resolve(process.cwd(), "fixtures", "current-project");
+    const otherRoot = path.resolve(process.cwd(), "fixtures", "other-project");
+
+    const currentFile: ProjectFile = {
+      ...testFile,
+      path: "src/current.ts"
+    };
+    const currentChunk: TextChunk = {
+      ...testChunks[0],
+      filePath: "src/current.ts"
+    };
+    const staleFile: ProjectFile = {
+      ...testFile,
+      path: "src/renamed-old.ts"
+    };
+    const staleChunk: TextChunk = {
+      ...testChunks[0],
+      filePath: "src/renamed-old.ts"
+    };
+    const otherProjectFile: ProjectFile = {
+      ...testFile,
+      path: "lib/other-project.ts"
+    };
+    const otherProjectChunk: TextChunk = {
+      ...testChunks[0],
+      filePath: "lib/other-project.ts"
+    };
+
+    saveIndexedData(
+      [currentFile, staleFile],
+      [currentChunk, staleChunk],
+      [testEmbeddings[0], testEmbeddings[0]],
+      currentRoot
+    );
+    saveIndexedData(
+      [otherProjectFile],
+      [otherProjectChunk],
+      [testEmbeddings[0]],
+      otherRoot
+    );
+
+    const result = pruneProjectIndex(
+      currentRoot,
+      ["src/current.ts"]
+    );
+
+    expect(result).toEqual({
+      deletedFiles: 1,
+      deletedChunks: 1
+    });
+
+    const remainingFiles = database.prepare(`
+      SELECT path, root_path FROM files ORDER BY path
+    `).all() as Array<{ path: string; root_path: string }>;
+
+    expect(remainingFiles).toEqual([
+      { path: "lib/other-project.ts", root_path: otherRoot },
+      { path: "src/current.ts", root_path: currentRoot }
+    ]);
+
+    const remainingChunks = database.prepare(`
+      SELECT COUNT(*) AS count FROM chunks
+    `).get() as { count: number | bigint };
+
+    expect(Number(remainingChunks.count)).toBe(2);
   });
 
   it("should reject mismatched chunk and embedding counts", () => {
