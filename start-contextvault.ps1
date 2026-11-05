@@ -62,21 +62,39 @@ try {
     }
     Write-Info "Using Node.js $NodeVersionText."
 
-    # Add Ollama's standard per-user install folder to this process if necessary.
-    $OllamaInstallPath = Join-Path $env:LOCALAPPDATA 'Programs\Ollama'
-    if (Test-Path -LiteralPath (Join-Path $OllamaInstallPath 'ollama.exe')) {
-        $env:Path = "$OllamaInstallPath;$env:Path"
+    # Resolve Ollama from the same supported locations as the installer.
+    $ProgramFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $OllamaCandidates = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Ollama\ollama.exe'),
+        (Join-Path $env:ProgramFiles 'Ollama\ollama.exe')
+    )
+    if ($ProgramFilesX86) {
+        $OllamaCandidates += (Join-Path $ProgramFilesX86 'Ollama\ollama.exe')
     }
 
-    $OllamaCommand = Get-Command ollama -CommandType Application -ErrorAction SilentlyContinue
-    if (-not $OllamaCommand) {
-        throw 'Ollama was not found. Install it from https://ollama.com/download/windows, then run install-contextvault.ps1 again.'
+    $OllamaExe = $OllamaCandidates |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } |
+        Select-Object -First 1
+
+    if (-not $OllamaExe) {
+        $OllamaCommand = Get-Command ollama -CommandType Application -ErrorAction SilentlyContinue
+        if ($OllamaCommand) {
+            $OllamaExe = $OllamaCommand.Source
+        }
     }
+
+    if (-not $OllamaExe) {
+        throw 'Ollama was not found. Run install-contextvault.ps1 to install the official Ollama application.'
+    }
+
+    $OllamaExe = [IO.Path]::GetFullPath([string]$OllamaExe)
+    $env:Path = "$(Split-Path -Parent $OllamaExe);$env:Path"
 
     # Start the local service only when the API is not already responding.
     if (-not (Test-OllamaApi)) {
         Write-Info 'Starting the local Ollama service...'
-        Start-Process -FilePath $OllamaCommand.Source -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
+        Start-Process -FilePath $OllamaExe -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
 
         $OllamaReady = $false
         for ($Attempt = 0; $Attempt -lt 30; $Attempt++) {
@@ -104,7 +122,7 @@ try {
 
     if (-not $HasEmbeddingModel) {
         Write-WarningMessage 'nomic-embed-text is not installed. Downloading it now...'
-        & $OllamaCommand.Source pull 'nomic-embed-text'
+        & $OllamaExe pull 'nomic-embed-text'
         if ($LASTEXITCODE -ne 0) {
             throw 'Ollama could not download nomic-embed-text. Check your network connection and try again.'
         }
