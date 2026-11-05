@@ -639,11 +639,13 @@ If Not HttpReady("http://127.0.0.1:11434/api/tags") Then
 End If
 
 If Not HttpReady("http://127.0.0.1:11434/api/tags") Then
-    shell.Run Chr(34) & "__OLLAMA_APP_EXE__" & Chr(34), 0, False
-    For i = 1 To 30
-        WScript.Sleep 1000
-        If HttpReady("http://127.0.0.1:11434/api/tags") Then Exit For
-    Next
+    If "__OLLAMA_APP_EXE__" <> "" Then
+        shell.Run Chr(34) & "__OLLAMA_APP_EXE__" & Chr(34), 0, False
+        For i = 1 To 30
+            WScript.Sleep 1000
+            If HttpReady("http://127.0.0.1:11434/api/tags") Then Exit For
+        Next
+    End If
 End If
 
 If Not HttpReady("http://127.0.0.1:11434/api/tags") Then
@@ -668,7 +670,7 @@ End If
 '@
 
     $OllamaAppExe = Get-OllamaAppExe -OllamaCliPath $OllamaExePath
-    if (-not $OllamaAppExe) { $OllamaAppExe = $OllamaExePath }
+    if (-not $OllamaAppExe) { $OllamaAppExe = '' }
     $LauncherContent = $LauncherContent.Replace('__PROJECT_ROOT__', $ProjectRoot).Replace('__OLLAMA_EXE__', $OllamaExePath).Replace('__OLLAMA_APP_EXE__', $OllamaAppExe).Replace('__NODE_EXE__', $NodeExe).Replace('__NPM_CLI__', $NpmCli)
     Set-Content -LiteralPath $LauncherScript -Value $LauncherContent -Encoding ASCII
 
