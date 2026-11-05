@@ -23,6 +23,8 @@
     <a href="#connect-your-ai-tools-with-mcp"><strong>MCP setup</strong></a>
     ·
     <a href="#pricing"><strong>Pricing</strong></a>
+    ·
+    <a href="TESTING.md"><strong>Testing guide</strong></a>
   </p>
 </div>
 
