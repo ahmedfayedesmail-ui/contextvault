@@ -10,7 +10,7 @@
 
   <meta
     name="theme-color"
-    content="#0b0d12"
+    content="#05060a"
   >
 
   <title>ContextVault</title>
@@ -880,6 +880,779 @@
       }
     }
 
+
+    /* Premium local-first workspace refresh */
+    :root {
+      --background: #05060a;
+      --surface: rgba(14, 17, 27, 0.78);
+      --surface-hover: rgba(22, 27, 41, 0.92);
+      --border: rgba(148, 163, 184, 0.14);
+      --text: #f4f7ff;
+      --muted: #8792a8;
+      --accent: #8a7dff;
+      --accent-hover: #a99fff;
+      --success: #62e2bd;
+      --danger: #ff7c91;
+      --cyan: #66d9f5;
+      --code-bg: #070a11;
+      --shadow-card: 0 22px 64px rgba(0, 0, 0, 0.32);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 48% -24%, rgba(97, 93, 255, 0.19), transparent 48%),
+        radial-gradient(ellipse at 100% 34%, rgba(40, 180, 226, 0.075), transparent 34%),
+        linear-gradient(180deg, #07080e 0%, #05060a 58%, #070910 100%);
+      color: var(--text);
+      font-family: "Inter", "Geist", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+      letter-spacing: -0.01em;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.15;
+      background-image:
+        linear-gradient(rgba(144, 155, 190, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(144, 155, 190, 0.045) 1px, transparent 1px);
+      background-size: 52px 52px;
+      mask-image: linear-gradient(to bottom, black, transparent 72%);
+    }
+
+    .container {
+      width: min(1120px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    header {
+      margin-bottom: 62px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .brand { min-height: 42px; }
+
+    .brand-identity { gap: 13px; }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      color: #eff2ff;
+      font-size: 19px;
+      background: linear-gradient(145deg, rgba(133, 118, 255, 0.3), rgba(72, 177, 235, 0.12));
+      border: 1px solid rgba(153, 142, 255, 0.38);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 28px rgba(111, 93, 255, 0.12);
+    }
+
+    .brand-name { font-size: 18px; font-weight: 720; letter-spacing: -0.65px; }
+    .brand-label { font-size: 10px; letter-spacing: 1.55px; color: #758199; }
+
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+
+    .local-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 11px;
+      color: #a9b4c9;
+      background: rgba(15, 21, 31, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.13);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+    }
+
+    .local-status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 12px rgba(98, 226, 189, 0.48);
+    }
+
+    .settings-button {
+      padding: 10px 13px;
+      background: rgba(18, 22, 34, 0.78);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      color: #d6dcef;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    .settings-button:hover {
+      background: rgba(31, 36, 55, 0.9);
+      border-color: rgba(139, 125, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .settings-button span:first-child { font-size: 15px; }
+
+    .hero {
+      max-width: 790px;
+      margin: 0 auto 30px;
+      text-align: center;
+    }
+
+    .hero-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 18px;
+      color: #9d9abf;
+      font-size: 10px;
+      font-weight: 760;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+    }
+
+    .hero-kicker::before {
+      content: "";
+      width: 20px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #8f83ff);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(38px, 6vw, 62px);
+      line-height: 1.06;
+      font-weight: 760;
+      letter-spacing: -3.2px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(105deg, #f4f6ff 12%, #bdb5ff 55%, #7ddbf1 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero p {
+      max-width: 590px;
+      margin: 17px auto 0;
+      color: #8d98ad;
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(290px, 0.75fr);
+      align-items: stretch;
+      gap: 16px;
+      margin: 0 0 18px;
+    }
+
+    .search-workspace,
+    .onboarding-panel,
+    .settings-dialog {
+      background: linear-gradient(145deg, rgba(18, 23, 36, 0.82), rgba(9, 12, 20, 0.84));
+      border: 1px solid rgba(149, 163, 190, 0.15);
+      box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.035);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .search-workspace {
+      min-width: 0;
+      padding: 22px;
+      border-radius: 18px;
+    }
+
+    .section-eyebrow {
+      margin: 0 0 13px;
+      color: #8e9ab2;
+      font-size: 10px;
+      font-weight: 760;
+      letter-spacing: 1.35px;
+      text-transform: uppercase;
+    }
+
+    .search-box {
+      min-height: 72px;
+      gap: 12px;
+      padding: 10px 11px 10px 17px;
+      background: rgba(4, 7, 13, 0.82);
+      border: 1px solid rgba(145, 153, 186, 0.19);
+      border-radius: 14px;
+      box-shadow: inset 0 1px 8px rgba(0,0,0,0.3);
+      transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+
+    .search-box:focus-within {
+      border-color: rgba(145, 130, 255, 0.7);
+      box-shadow: 0 0 0 3px rgba(133, 117, 255, 0.12), 0 10px 30px rgba(63, 51, 151, 0.13);
+      transform: translateY(-1px);
+    }
+
+    .search-symbol {
+      flex: 0 0 auto;
+      color: #8f88df;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .search-box input {
+      min-width: 0;
+      padding: 12px 2px;
+      color: #eff2ff;
+      font-family: inherit;
+      font-size: 15px;
+      letter-spacing: -0.2px;
+    }
+
+    .search-box input::placeholder { color: #69758c; }
+
+    .search-tools {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .shortcut-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #77839a;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    kbd {
+      min-width: 22px;
+      padding: 4px 6px;
+      color: #b3bdd0;
+      background: #151a28;
+      border: 1px solid rgba(148,163,184,0.19);
+      border-radius: 6px;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.22);
+      font-family: inherit;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .search-button,
+    .index-button,
+    .upgrade-button,
+    .activate-button,
+    .copy-mcp-button {
+      background: linear-gradient(105deg, #7869ec, #5c9eea);
+      color: #fff;
+      border: 1px solid rgba(184, 177, 255, 0.18);
+      border-radius: 10px;
+      box-shadow: 0 7px 18px rgba(77, 91, 214, 0.18), inset 0 1px 0 rgba(255,255,255,0.16);
+      font-family: inherit;
+      font-weight: 720;
+      transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+    }
+
+    .search-button {
+      min-width: 100px;
+      padding: 12px 17px;
+      font-size: 12px;
+    }
+
+    .search-button:hover:not(:disabled),
+    .index-button:hover:not(:disabled),
+    .upgrade-button:hover,
+    .activate-button:hover:not(:disabled),
+    .copy-mcp-button:hover:not(:disabled) {
+      filter: brightness(1.12);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(77, 91, 214, 0.28), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .search-button:active:not(:disabled),
+    .index-button:active:not(:disabled) { transform: translateY(0); }
+
+    .search-button:disabled,
+    .index-button:disabled,
+    .activate-button:disabled,
+    .copy-mcp-button:disabled { opacity: .56; cursor: wait; }
+
+    .search-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 2px 0;
+      color: #77839a;
+      font-size: 11px;
+    }
+
+    .search-note .note-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      opacity: .85;
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 9px;
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 auto 28px;
+      padding: 7px;
+      background: rgba(15, 19, 29, 0.64);
+      border: 1px solid rgba(148, 163, 184, 0.13);
+      border-radius: 999px;
+      backdrop-filter: blur(12px);
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      color: #98a4ba;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(148,163,184,0.08);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .stat-label { color: #8793a8; }
+    .stats-value { color: #dce6ff; font-size: 12px; font-weight: 780; }
+
+    .stat-icon {
+      display: grid;
+      width: 19px;
+      height: 19px;
+      place-items: center;
+      color: #a79bff;
+      background: rgba(137, 124, 255, 0.13);
+      border-radius: 6px;
+      font-size: 10px;
+    }
+
+    .onboarding-panel {
+      min-width: 0;
+      margin: 0;
+      padding: 22px;
+      border-radius: 18px;
+    }
+
+    .onboarding-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 17px;
+    }
+
+    .onboarding-heading {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 730;
+      letter-spacing: -.35px;
+    }
+
+    .setup-badge {
+      padding: 5px 8px;
+      color: #9ba7bf;
+      background: rgba(133, 146, 173, .09);
+      border: 1px solid rgba(148,163,184,.12);
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 760;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+    }
+
+    .welcome-message {
+      margin: 0 0 14px;
+      color: #8490a6;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .onboarding-form { flex-direction: column; gap: 9px; }
+
+    .project-path-input,
+    .license-key-input {
+      width: 100%;
+      min-height: 43px;
+      padding: 12px 13px;
+      background: rgba(3, 6, 12, .72);
+      border: 1px solid rgba(148,163,184,.17);
+      border-radius: 10px;
+      color: #edf1ff;
+      font-family: inherit;
+      font-size: 12px;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .project-path-input:focus,
+    .license-key-input:focus {
+      outline: none;
+      border-color: rgba(137, 124, 255, .7);
+      box-shadow: 0 0 0 3px rgba(137, 124, 255, .11);
+    }
+
+    .project-path-input::placeholder,
+    .license-key-input::placeholder { color: #5f6a80; }
+
+    .index-button {
+      width: 100%;
+      min-height: 42px;
+      padding: 11px 15px;
+      font-size: 12px;
+    }
+
+    .onboarding-status {
+      min-height: 18px;
+      margin: 12px 0 0;
+      color: #8592aa;
+      font-size: 11px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .onboarding-status.success { color: var(--success); }
+    .onboarding-status.error { color: var(--danger); }
+
+    .index-progress {
+      margin-top: 13px;
+      padding: 12px;
+      background: rgba(4, 7, 13, .68);
+      border: 1px solid rgba(148,163,184,.13);
+      border-radius: 11px;
+    }
+
+    .progress-track { height: 6px; background: #20263a; }
+    .progress-fill { background: linear-gradient(90deg, #8978ff, #66d6ef); }
+    .progress-percent { color: var(--cyan); }
+    .progress-detail { color: #79859c; }
+
+    .panel-actions { margin-top: 12px; }
+
+    .clear-index-button {
+      padding: 7px 10px;
+      border-color: rgba(255, 124, 145, .25);
+      border-radius: 8px;
+      color: #c77f93;
+      font-size: 10px;
+    }
+
+    .clear-index-button:hover:not(:disabled) {
+      background: rgba(255, 124, 145, .08);
+    }
+
+    .status-message {
+      min-height: 20px;
+      margin: 12px 2px 0;
+      color: #8b97ad;
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .status-message.error { color: var(--danger); }
+
+    .results-header {
+      align-items: flex-end;
+      margin: 34px 0 14px;
+    }
+
+    .results-heading-wrap h2 {
+      margin: 0;
+      color: #f0f3ff;
+      font-size: 15px;
+      font-weight: 730;
+      letter-spacing: -.25px;
+    }
+
+    .results-subtitle {
+      margin: 6px 0 0;
+      color: #76829a;
+      font-size: 11px;
+    }
+
+    .result-count {
+      padding: 6px 9px;
+      color: #a6b2c8;
+      background: rgba(20, 25, 39, .72);
+      border: 1px solid rgba(148,163,184,.13);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .results { gap: 12px; }
+
+    .result-card {
+      padding: 0;
+      overflow: hidden;
+      background: linear-gradient(145deg, rgba(17, 22, 35, .89), rgba(9, 12, 20, .92));
+      border: 1px solid rgba(148, 163, 184, .15);
+      border-radius: 15px;
+      box-shadow: 0 12px 34px rgba(0,0,0,.2);
+      transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .result-card:hover {
+      background: linear-gradient(145deg, rgba(20, 26, 42, .96), rgba(10, 14, 23, .96));
+      border-color: rgba(138, 125, 255, .35);
+      transform: translateY(-2px);
+      box-shadow: 0 18px 42px rgba(0,0,0,.28);
+    }
+
+    .result-top {
+      min-height: 52px;
+      margin: 0;
+      padding: 13px 17px;
+      background: rgba(255,255,255,.018);
+      border-bottom: 1px solid rgba(148,163,184,.1);
+    }
+
+    .file-path {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #b8c7e3;
+      font-size: 12px;
+      font-weight: 680;
+      letter-spacing: .05px;
+    }
+
+    .file-path::before {
+      content: "⌁";
+      display: grid;
+      width: 20px;
+      height: 20px;
+      place-items: center;
+      color: #a99dff;
+      background: rgba(137, 124, 255, .12);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .result-meta { display: flex; align-items: center; gap: 8px; }
+
+    .language-badge {
+      padding: 5px 7px;
+      color: #8e9bb2;
+      background: rgba(148, 163, 184, .08);
+      border: 1px solid rgba(148,163,184,.11);
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 760;
+      letter-spacing: .55px;
+      text-transform: uppercase;
+    }
+
+    .score {
+      padding: 5px 8px;
+      background: rgba(83, 215, 184, .08);
+      border: 1px solid rgba(83, 215, 184, .17);
+      border-radius: 999px;
+      color: #7cdec0;
+      font-size: 10px;
+      font-weight: 730;
+    }
+
+    .code-window {
+      margin: 12px;
+      overflow: hidden;
+      background: var(--code-bg);
+      border: 1px solid rgba(125, 145, 181, .13);
+      border-radius: 10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.025), 0 8px 24px rgba(0,0,0,.18);
+    }
+
+    .code-window-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 34px;
+      padding: 0 11px;
+      background: rgba(255,255,255,.025);
+      border-bottom: 1px solid rgba(148,163,184,.09);
+      color: #6f7b92;
+      font-size: 10px;
+    }
+
+    .code-window-title { display: inline-flex; align-items: center; gap: 8px; }
+
+    .code-window-title::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #7d77e7;
+      box-shadow: 0 0 9px rgba(125,119,231,.35);
+    }
+
+    .code-window-bar .code-label {
+      color: #68748b;
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+    }
+
+    .snippet {
+      display: block;
+      max-height: 460px;
+      margin: 0;
+      padding: 13px 0;
+      overflow: auto;
+      color: #cad4e7;
+      background: transparent;
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.78;
+      white-space: pre;
+      overflow-wrap: normal;
+      tab-size: 2;
+    }
+
+    .code-line {
+      display: block;
+      min-height: 1.78em;
+      padding: 0 16px 0 0;
+      white-space: pre;
+    }
+
+    .code-line::before {
+      display: inline-block;
+      width: 42px;
+      margin-right: 15px;
+      padding-right: 10px;
+      color: #455168;
+      border-right: 1px solid rgba(148,163,184,.1);
+      content: attr(data-line);
+      text-align: right;
+      user-select: none;
+    }
+
+    .token-keyword { color: #bd9cff; }
+    .token-string { color: #a7dcae; }
+    .token-comment { color: #687a8f; font-style: italic; }
+    .token-number { color: #e4b77c; }
+    .token-function { color: #82cfef; }
+    .token-punctuation { color: #8d9bb4; }
+
+    .empty-state {
+      padding: 54px 22px;
+      background: rgba(13, 17, 27, .62);
+      border: 1px dashed rgba(148, 163, 184, .19);
+      border-radius: 14px;
+      color: #7d899f;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(148,163,184,.1);
+      color: #68748a;
+      font-size: 10px;
+      letter-spacing: .25px;
+    }
+
+    .settings-dialog {
+      width: min(560px, calc(100% - 28px));
+      color: var(--text);
+      background: linear-gradient(145deg, rgba(17, 22, 35, .97), rgba(7, 10, 17, .98));
+      border: 1px solid rgba(148,163,184,.2);
+      border-radius: 18px;
+      box-shadow: 0 28px 90px rgba(0,0,0,.64);
+      backdrop-filter: blur(20px);
+    }
+
+    .settings-dialog::backdrop {
+      background: rgba(2, 4, 9, .76);
+      backdrop-filter: blur(8px);
+    }
+
+    .pricing-card,
+    .license-key-input,
+    .mcp-instructions {
+      background: rgba(4, 7, 13, .72);
+      border-color: rgba(148,163,184,.14);
+      border-radius: 12px;
+    }
+
+    .pricing-card.featured {
+      background: linear-gradient(145deg, rgba(125, 112, 241, .11), rgba(50, 113, 154, .06));
+      border-color: rgba(139,125,255,.4);
+    }
+
+    .settings-close {
+      background: rgba(255,255,255,.045);
+      border-color: rgba(148,163,184,.14);
+      border-radius: 10px;
+    }
+
+    .settings-close:hover { color: #fff; border-color: rgba(139,125,255,.45); }
+
+    button:focus-visible,
+    input:focus-visible,
+    a:focus-visible {
+      outline: 2px solid rgba(125, 205, 242, .86);
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 840px) {
+      header { margin-bottom: 46px; }
+      .workspace-grid { grid-template-columns: minmax(0, 1fr); }
+      .onboarding-panel { order: 2; }
+    }
+
+    @media (max-width: 560px) {
+      .container { width: min(100% - 28px, 1120px); padding-top: 22px; }
+      header { margin-bottom: 38px; padding-bottom: 15px; }
+      .brand-label { letter-spacing: 1px; font-size: 9px; }
+      .local-status { display: none; }
+      .hero { margin-bottom: 22px; }
+      .hero h1 { font-size: clamp(34px, 10vw, 46px); letter-spacing: -1.9px; }
+      .hero p { font-size: 13px; }
+      .stats-bar { width: fit-content; margin-bottom: 19px; }
+      .stat-pill { padding: 6px 9px; }
+      .workspace-grid { gap: 12px; }
+      .search-workspace, .onboarding-panel { padding: 16px; border-radius: 15px; }
+      .search-box { min-height: auto; flex-wrap: wrap; padding: 9px 11px; }
+      .search-box input { flex: 1 1 calc(100% - 40px); width: auto; padding: 9px 2px; }
+      .search-tools { width: 100%; justify-content: space-between; }
+      .search-button { flex: 1; }
+      .shortcut-hint { display: none; }
+      .result-top { align-items: flex-start; flex-wrap: wrap; }
+      .result-meta { flex-wrap: wrap; }
+      .code-window { margin: 8px; }
+      .snippet { font-size: 11px; }
+      .code-line::before { width: 30px; margin-right: 10px; }
+      .results-header { margin-top: 28px; }
+      .settings-content { padding: 18px; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .activation-form { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+
   </style>
 </head>
 
@@ -890,22 +1663,25 @@
     <header>
       <div class="brand">
         <div class="brand-identity">
-          <div class="brand-icon">C</div>
+          <div class="brand-icon" aria-hidden="true">C</div>
           <div>
             <div class="brand-name">ContextVault</div>
             <div class="brand-label">Local-first developer memory</div>
           </div>
         </div>
 
-        <button
-          id="settings-button"
-          class="settings-button"
-          type="button"
-          aria-label="Open Settings"
-        >
-          <span aria-hidden="true">⚙️</span>
-          <span>Settings</span>
-        </button>
+        <div class="header-actions">
+          <span class="local-status">Local engine</span>
+          <button
+            id="settings-button"
+            class="settings-button"
+            type="button"
+            aria-label="Open Settings"
+          >
+            <span aria-hidden="true">⚙</span>
+            <span>Settings</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -1037,167 +1813,113 @@
     </dialog>
 
     <section class="hero">
-
-      <h1>
-        Search your project context.
-      </h1>
-
-      <p>
-        Find relevant code and knowledge across your indexed projects.
-      </p>
-
+      <div class="hero-kicker">Local-first code intelligence</div>
+      <h1>Find the signal <span>in your code.</span></h1>
+      <p>Search your codebase in natural language. Your index, embeddings, and source context stay on this machine.</p>
     </section>
 
     <div class="stats-bar" role="status" aria-live="polite">
-      <span>Files:</span>
-      <span id="total-files" class="stats-value">0</span>
-      <span aria-hidden="true">|</span>
-      <span>Chunks:</span>
-      <span id="total-chunks" class="stats-value">0</span>
+      <div class="stat-pill">
+        <span class="stat-icon" aria-hidden="true">⌘</span>
+        <span class="stat-label">Files</span>
+        <span id="total-files" class="stats-value">0</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-icon" aria-hidden="true">▤</span>
+        <span class="stat-label">Chunks</span>
+        <span id="total-chunks" class="stats-value">0</span>
+      </div>
     </div>
 
-    <section class="onboarding-panel" aria-labelledby="onboarding-heading">
-      <h2 id="onboarding-heading" class="onboarding-heading">
-        Get started with ContextVault
-      </h2>
+    <div class="workspace-grid">
+      <section class="search-workspace" aria-labelledby="search-heading">
+        <p id="search-heading" class="section-eyebrow">Ask your codebase</p>
 
-      <p id="welcome-message" class="welcome-message">
-        Welcome to ContextVault! To get started, enter a project path below and click Index.
-      </p>
+        <form id="search-form">
+          <div class="search-box">
+            <span class="search-symbol" aria-hidden="true">⌕</span>
+            <input
+              id="search-input"
+              type="search"
+              placeholder="Ask anything about your project..."
+              aria-label="Search your project context"
+              autocomplete="off"
+              required
+            >
+            <div class="search-tools">
+              <span class="shortcut-hint"><kbd>/</kbd> to focus search</span>
+              <button id="search-button" class="search-button" type="submit">Search <span aria-hidden="true">↗</span></button>
+            </div>
+          </div>
+        </form>
 
-      <form id="index-form" class="onboarding-form">
-        <input
-          id="project-path"
-          class="project-path-input"
-          type="text"
-          placeholder="C:\Users\YourName\Projects\YourProject"
-          aria-label="Project folder path"
-          autocomplete="off"
-          spellcheck="false"
-          required
-        >
+        <p class="search-note"><span class="note-dot"></span> Semantic search · Local embeddings · Private by design</p>
+        <div id="status" class="status-message" role="status" aria-live="polite"></div>
+      </section>
 
-        <button
-          id="index-button"
-          class="index-button"
-          type="submit"
-        >
-          Index Project
-        </button>
-      </form>
-
-      <p
-        id="onboarding-status"
-        class="onboarding-status"
-        role="status"
-        aria-live="polite"
-      ></p>
-
-      <div
-        id="index-progress"
-        class="index-progress"
-        hidden
-      >
-        <div class="index-progress-top">
-          <span id="index-progress-label">
-            Preparing indexing...
-          </span>
-          <span
-            id="index-progress-percent"
-            class="progress-percent"
-          >0%</span>
+      <section class="onboarding-panel" aria-labelledby="onboarding-heading">
+        <div class="onboarding-topline">
+          <h2 id="onboarding-heading" class="onboarding-heading">Add a project</h2>
+          <span class="setup-badge">Workspace</span>
         </div>
 
-        <div
-          id="index-progress-track"
-          class="progress-track"
-          role="progressbar"
-          aria-label="Project indexing progress"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow="0"
-        >
+        <p id="welcome-message" class="welcome-message">
+          Connect a local project folder to build its searchable context index.
+        </p>
+
+        <form id="index-form" class="onboarding-form">
+          <input
+            id="project-path"
+            class="project-path-input"
+            type="text"
+            placeholder="C:\Users\You\Projects\App"
+            aria-label="Project folder path"
+            autocomplete="off"
+            spellcheck="false"
+            required
+          >
+          <button id="index-button" class="index-button" type="submit">Index Project <span aria-hidden="true">↗</span></button>
+        </form>
+
+        <p id="onboarding-status" class="onboarding-status" role="status" aria-live="polite"></p>
+
+        <div id="index-progress" class="index-progress" hidden>
+          <div class="index-progress-top">
+            <span id="index-progress-label">Preparing indexing...</span>
+            <span id="index-progress-percent" class="progress-percent">0%</span>
+          </div>
           <div
-            id="index-progress-fill"
-            class="progress-fill"
-          ></div>
+            id="index-progress-track"
+            class="progress-track"
+            role="progressbar"
+            aria-label="Project indexing progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div id="index-progress-fill" class="progress-fill"></div>
+          </div>
+          <p id="index-progress-detail" class="progress-detail"></p>
         </div>
 
-        <p
-          id="index-progress-detail"
-          class="progress-detail"
-        ></p>
-      </div>
+        <div class="panel-actions">
+          <button id="clear-index-button" class="clear-index-button" type="button" disabled>Clear local index</button>
+        </div>
+      </section>
+    </div>
 
-      <div class="panel-actions">
-        <button
-          id="clear-index-button"
-          class="clear-index-button"
-          type="button"
-          disabled
-        >
-          Clear Index
-        </button>
-      </div>
-    </section>
-
-    <form id="search-form">
-
-      <div class="search-box">
-
-        <input
-          id="search-input"
-          type="search"
-          placeholder="Ask something about your project..."
-          autocomplete="off"
-          required
-        >
-
-        <button
-          id="search-button"
-          class="search-button"
-          type="submit"
-        >
-          Search
-        </button>
-
-      </div>
-
-    </form>
-
-    <div
-      id="status"
-      class="status-message"
-      role="status"
-      aria-live="polite"
-    ></div>
-
-    <section>
-
+    <section aria-labelledby="results-heading">
       <div class="results-header">
-
-        <h2>
-          Search Results
-        </h2>
-
-        <span
-          id="result-count"
-          class="result-count"
-        >
-          No results yet
-        </span>
-
-      </div>
-
-      <div
-        id="results"
-        class="results"
-      >
-        <div class="empty-state">
-          Your search results will appear here.
+        <div class="results-heading-wrap">
+          <h2 id="results-heading">Search results</h2>
+          <p class="results-subtitle">Relevant source context, ranked by semantic match.</p>
         </div>
+        <span id="result-count" class="result-count">No results yet</span>
       </div>
 
+      <div id="results" class="results">
+        <div class="empty-state">Your results will appear here. Press <kbd>/</kbd> to start a search.</div>
+      </div>
     </section>
 
     <footer>
@@ -1650,6 +2372,57 @@
       }
     });
 
+    function getLanguageLabel(filePath) {
+      const extension = String(filePath).split(".").pop()?.toLowerCase() || "";
+      const labels = {
+        ts: "TypeScript", tsx: "TSX", js: "JavaScript", jsx: "JSX",
+        py: "Python", json: "JSON", md: "Markdown", html: "HTML",
+        css: "CSS", sql: "SQL", sh: "Shell", ps1: "PowerShell"
+      };
+      return labels[extension] || (extension ? extension.toUpperCase() : "CODE");
+    }
+
+    function appendHighlightedLine(target, line) {
+      const fragment = document.createDocumentFragment();
+      const tokenPattern = /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|#[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:export|default|function|return|const|let|var|class|interface|type|async|await|if|else|new|throw|import|from|as|public|private|static|true|false|null|undefined)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()|[{}()[\].,;:])/g;
+      let lastIndex = 0;
+
+      for (const match of line.matchAll(tokenPattern)) {
+        const token = match[0];
+        const index = match.index ?? 0;
+
+        if (index > lastIndex) {
+          fragment.appendChild(document.createTextNode(line.slice(lastIndex, index)));
+        }
+
+        const span = document.createElement("span");
+        let tokenClass = "token-punctuation";
+
+        if (token.startsWith("//") || token.startsWith("/*") || token.startsWith("#")) {
+          tokenClass = "token-comment";
+        } else if (token.startsWith('"') || token.startsWith("'") || token.startsWith("`")) {
+          tokenClass = "token-string";
+        } else if (/^\d/.test(token)) {
+          tokenClass = "token-number";
+        } else if (/^(export|default|function|return|const|let|var|class|interface|type|async|await|if|else|new|throw|import|from|as|public|private|static|true|false|null|undefined)$/.test(token)) {
+          tokenClass = "token-keyword";
+        } else if (/^[A-Za-z_$]/.test(token)) {
+          tokenClass = "token-function";
+        }
+
+        span.className = tokenClass;
+        span.textContent = token;
+        fragment.appendChild(span);
+        lastIndex = index + token.length;
+      }
+
+      if (lastIndex < line.length) {
+        fragment.appendChild(document.createTextNode(line.slice(lastIndex)));
+      }
+
+      target.appendChild(fragment);
+    }
+
     function createResultCard(result) {
       const card = document.createElement("article");
       card.className = "result-card";
@@ -1661,16 +2434,51 @@
       filePath.className = "file-path";
       filePath.textContent = result.filePath;
 
+      const meta = document.createElement("div");
+      meta.className = "result-meta";
+
+      const language = document.createElement("span");
+      language.className = "language-badge";
+      language.textContent = getLanguageLabel(result.filePath);
+
       const score = document.createElement("span");
       score.className = "score";
-      score.textContent = `Match: ${(result.score * 100).toFixed(1)}%`;
+      score.textContent = `${(result.score * 100).toFixed(1)}% match`;
+
+      meta.append(language, score);
+      top.append(filePath, meta);
+
+      const codeWindow = document.createElement("div");
+      codeWindow.className = "code-window";
+
+      const toolbar = document.createElement("div");
+      toolbar.className = "code-window-bar";
+
+      const toolbarTitle = document.createElement("span");
+      toolbarTitle.className = "code-window-title";
+      toolbarTitle.textContent = String(result.filePath).split(/[\\/]/).pop() || "source";
+
+      const toolbarLabel = document.createElement("span");
+      toolbarLabel.className = "code-label";
+      toolbarLabel.textContent = getLanguageLabel(result.filePath);
+
+      toolbar.append(toolbarTitle, toolbarLabel);
 
       const snippet = document.createElement("pre");
       snippet.className = "snippet";
-      snippet.textContent = result.content;
+      snippet.setAttribute("aria-label", `Code result from ${result.filePath}`);
 
-      top.append(filePath, score);
-      card.append(top, snippet);
+      const lines = String(result.content ?? "").replace(/\r\n/g, "\n").split("\n");
+      lines.forEach((line, index) => {
+        const lineElement = document.createElement("span");
+        lineElement.className = "code-line";
+        lineElement.dataset.line = String(index + 1);
+        appendHighlightedLine(lineElement, line || " ");
+        snippet.appendChild(lineElement);
+      });
+
+      codeWindow.append(toolbar, snippet);
+      card.append(top, codeWindow);
 
       return card;
     }
@@ -1699,6 +2507,25 @@
       resultCount.textContent =
         `${results.length} result${results.length === 1 ? "" : "s"}`;
     }
+
+    // Raycast-style shortcut: press "/" anywhere outside an editable control to focus search.
+    document.addEventListener("keydown", (event) => {
+      const target = event.target;
+      const isEditable = target instanceof HTMLElement && (
+        target.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+      );
+
+      if (event.key === "/" && !isEditable && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+
+      if (event.key === "Escape" && document.activeElement === input) {
+        input.blur();
+      }
+    });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
