@@ -11,6 +11,68 @@ function Write-Info {
     Write-Host "[ContextVault] $Message" -ForegroundColor Green
 }
 
+$script:InstallStep = 0
+$script:TranscriptStarted = $false
+$script:LogDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ContextVault\logs'
+$script:LogPath = $null
+
+try {
+    New-Item -ItemType Directory -Path $script:LogDirectory -Force | Out-Null
+    $script:LogPath = Join-Path $script:LogDirectory ("installer-{0}.log" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    Start-Transcript -Path $script:LogPath -Force | Out-Null
+    $script:TranscriptStarted = $true
+    Write-Info "Detailed installation log: $script:LogPath"
+}
+catch {
+    Write-Host "[ContextVault] Could not start the installation log: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
+function Write-Step {
+    param([Parameter(Mandatory = $true)][string]$Message)
+    $script:InstallStep++
+    Write-Host ""
+    Write-Host "[$($script:InstallStep)/7] $Message" -ForegroundColor Cyan
+}
+
+function Invoke-DownloadWithRetry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Uri,
+        [Parameter(Mandatory = $true)][string]$OutFile,
+        [Parameter(Mandatory = $true)][string]$Description,
+        [ValidateRange(1, 5)][int]$Retries = 3
+    )
+
+    for ($Attempt = 1; $Attempt -le $Retries; $Attempt++) {
+        try {
+            Write-Info "$Description (attempt $Attempt of $Retries)..."
+            Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -TimeoutSec 900 -ErrorAction Stop
+
+            if (-not (Test-Path -LiteralPath $OutFile -PathType Leaf)) {
+                throw "Download did not create the expected file: $OutFile"
+            }
+
+            $DownloadedFile = Get-Item -LiteralPath $OutFile
+            if ($DownloadedFile.Length -le 0) {
+                throw "Downloaded file is empty: $OutFile"
+            }
+
+            return
+        }
+        catch {
+            $Failure = $_.Exception.Message
+            Write-Host "[ContextVault] $Description failed: $Failure" -ForegroundColor Yellow
+            Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
+
+            if ($Attempt -eq $Retries) {
+                throw "$Description failed after $Retries attempts. Check the network connection and review the installer log. Last error: $Failure"
+            }
+
+            Start-Sleep -Seconds ([Math]::Min(5 * $Attempt, 15))
+        }
+    }
+}
+
 function Get-NodeCandidatePaths {
     # Resolve node.exe directly. No Get-Command, where.exe, command cache, or PATH lookup.
     $Candidates = New-Object 'System.Collections.Generic.List[string]'
@@ -155,7 +217,8 @@ function Install-Node22Runtime {
     }
 
     Write-Info 'No supported Node.js installation was found. Downloading the fallback runtime...'
-    $Releases = Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json'
+    Write-Info 'Checking the official Node.js 22 release manifest...'
+    $Releases = Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json' -TimeoutSec 30 -ErrorAction Stop
     $Release = $Releases |
         Where-Object { $_.version -match '^v22\.\d+\.\d+$' } |
         Sort-Object { [version]($_.version.TrimStart('v')) } -Descending |
@@ -179,8 +242,8 @@ function Install-Node22Runtime {
         $ManifestPath = Join-Path $env:TEMP "node-v$NodeVersion-SHASUMS256.txt"
 
         Write-Info "Downloading Node.js $NodeVersion..."
-        Invoke-WebRequest -Uri "https://nodejs.org/dist/v$NodeVersion/$ArchiveName" -OutFile $ArchivePath -UseBasicParsing
-        Invoke-WebRequest -Uri "https://nodejs.org/dist/v$NodeVersion/SHASUMS256.txt" -OutFile $ManifestPath -UseBasicParsing
+        Invoke-DownloadWithRetry -Uri "https://nodejs.org/dist/v$NodeVersion/$ArchiveName" -OutFile $ArchivePath -Description "Downloading Node.js $NodeVersion"
+        Invoke-DownloadWithRetry -Uri "https://nodejs.org/dist/v$NodeVersion/SHASUMS256.txt" -OutFile $ManifestPath -Description "Downloading the official Node.js checksum manifest"
 
         $ManifestLine = Get-Content -LiteralPath $ManifestPath | Where-Object {
             $_ -match "\s+$([regex]::Escape($ArchiveName))$"
@@ -268,7 +331,7 @@ function Install-Ollama {
     }
 
     $InstallerPath = Join-Path $env:TEMP 'OllamaSetup.exe'
-    Invoke-WebRequest -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile $InstallerPath -UseBasicParsing
+    Invoke-DownloadWithRetry -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile $InstallerPath -Description 'Downloading the official Ollama installer'
 
     $Signature = Get-AuthenticodeSignature -FilePath $InstallerPath
     if ($Signature.Status -ne 'Valid' -or $Signature.SignerCertificate.Subject -notmatch 'Ollama') {
@@ -305,11 +368,13 @@ function Invoke-HiddenAndWait {
 }
 
 try {
+    Write-Step 'Checking the extracted ContextVault project.'
     $ProjectRoot = [IO.Path]::GetFullPath($PSScriptRoot)
     if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'package.json') -PathType Leaf)) {
         throw 'Extract the complete ContextVault repository and run this installer from its root folder.'
     }
 
+    Write-Step 'Checking for Node.js 22.13 or newer.'
     Write-Info 'Locating an existing supported Node.js installation...'
     $NodeInfo = Get-SupportedNodeInfo
 
@@ -333,6 +398,7 @@ try {
         throw "npm-cli.js was not found beside the selected node.exe: $NpmCli"
     }
 
+    Write-Step 'Checking for Ollama and installing it if needed.'
     Write-Info 'Locating Ollama...'
     $OllamaExeResults = @(Get-OllamaExe | Select-Object -First 1)
     if ($OllamaExeResults.Count -eq 0) {
@@ -377,6 +443,7 @@ try {
         if (-not $OllamaReady) { throw 'Ollama did not start on localhost:11434.' }
     }
 
+    Write-Step 'Checking and preparing the nomic-embed-text model.'
     Write-Info 'Checking the nomic-embed-text model...'
     $ModelList = & $OllamaExePath list 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'Ollama could not list its installed models.' }
@@ -393,10 +460,29 @@ try {
         throw 'nomic-embed-text is still missing after the download attempt. ContextVault cannot index projects.'
     }
 
-    Write-Info 'Installing ContextVault dependencies in a hidden process...'
-    $SystemCmd = Join-Path ([Environment]::GetFolderPath('System')) 'cmd.exe'
-    $NpmArguments = '/d /c ""' + $NpmCommand + '" install"'
-    Invoke-HiddenAndWait -FilePath $SystemCmd -Arguments $NpmArguments -WorkingDirectory $ProjectRoot -FailureMessage 'npm install failed'
+    Write-Step 'Installing ContextVault dependencies.'
+    Write-Info 'npm output is shown in this window and saved in the installer log.'
+    $env:PATH = "$NodeHome;$env:PATH"
+    Push-Location $ProjectRoot
+    try {
+        & $NodeExe $NpmCli 'install' '--no-audit' '--no-fund'
+        $NpmExitCode = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
+    }
+
+    if ($NpmExitCode -ne 0) {
+        throw "npm install failed with exit code $NpmExitCode. Review the npm output and installer log."
+    }
+
+    $TsxCli = Join-Path $ProjectRoot 'node_modules\tsx\dist\cli.mjs'
+    if (-not (Test-Path -LiteralPath $TsxCli -PathType Leaf)) {
+        throw "Dependencies were installed, but the tsx runtime was not found at $TsxCli."
+    }
+    Write-Info 'ContextVault dependencies were installed and verified.'
+
+    Write-Step 'Creating the ContextVault desktop launcher.'
 
     # The VBS launcher calls node.exe and npm-cli.js by absolute path; PATH is not involved.
     $LocalAppData = [Environment]::GetFolderPath('LocalApplicationData')
@@ -467,12 +553,30 @@ End If
     $Shortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll, 13"
     $Shortcut.Save()
 
-    Write-Info 'Installation completed. Starting ContextVault and opening the browser...'
-    Start-Process -FilePath $WScriptExe -ArgumentList ('"' + $LauncherScript + '"')
+    Write-Step 'Verifying setup and opening ContextVault.'
+    Write-Info 'Node.js, Ollama, the embedding model, and project dependencies are ready.'
     Write-Info "Desktop shortcut created: $ShortcutPath"
+    Write-Info "Installer log: $script:LogPath"
+
+    if ($script:TranscriptStarted) {
+        Stop-Transcript | Out-Null
+        $script:TranscriptStarted = $false
+    }
+
+    Start-Process -FilePath $WScriptExe -ArgumentList ('"' + $LauncherScript + '"')
 }
 catch {
-    Write-Host "[ContextVault] $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "[ContextVault] Installation failed: $($_.Exception.Message)" -ForegroundColor Red
+    if ($script:LogPath) {
+        Write-Host "[ContextVault] Review the detailed log: $script:LogPath" -ForegroundColor Yellow
+    }
+    Write-Host '[ContextVault] No project source files were modified by the installer.' -ForegroundColor Yellow
+
+    if ($script:TranscriptStarted) {
+        Stop-Transcript | Out-Null
+        $script:TranscriptStarted = $false
+    }
+
     Read-Host 'Press Enter to close'
     exit 1
 }
