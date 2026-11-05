@@ -139,7 +139,7 @@ If more than one project is indexed into the same local database, `search_contex
 
 ## Embedding performance and diagnostics
 
-When the local dashboard starts, ContextVault sends a small background warm-up embedding request to Ollama. This loads `nomic-embed-text` before the first user search without delaying the dashboard from opening. The warm-up is non-fatal: if Ollama is unavailable, the app still starts and logs the reason.
+When the local dashboard or local MCP server starts, ContextVault sends a small background warm-up embedding request to Ollama. This loads `nomic-embed-text` before the first user search without delaying the app or MCP connection from starting. The warm-up is non-fatal: if Ollama is unavailable, the app and MCP server still start and log the reason.
 
 Embedding requests keep the model loaded for 30 minutes by default. The request timeout defaults to 120 seconds. You can override these settings with environment variables:
 
