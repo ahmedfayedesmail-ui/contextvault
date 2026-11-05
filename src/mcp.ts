@@ -3,6 +3,7 @@ import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { performance } from "node:perf_hooks";
 
 import { generateEmbedding, warmupEmbeddingModel } from "./indexer/embedder";
 import { indexProject } from "./indexer/pipeline";
@@ -35,9 +36,24 @@ export function createContextVaultMcpServer(): McpServer {
       }
     },
     async ({ query, limit }) => {
+      const searchStartedAt = performance.now();
+
       try {
+        const embeddingStartedAt = performance.now();
         const queryEmbedding = await generateEmbedding(query);
+        const embeddingDurationMs = performance.now() - embeddingStartedAt;
+
+        const vectorSearchStartedAt = performance.now();
         const results = searchVectors(queryEmbedding, limit ?? 5);
+        const vectorSearchDurationMs = performance.now() - vectorSearchStartedAt;
+        const totalDurationMs = performance.now() - searchStartedAt;
+
+        // MCP communicates over stdout; send diagnostics to stderr only.
+        console.error(
+          `[ContextVault] MCP search profiling: embedding=${embeddingDurationMs.toFixed(1)}ms, ` +
+          `vector_search=${vectorSearchDurationMs.toFixed(1)}ms, ` +
+          `total=${totalDurationMs.toFixed(1)}ms, results=${results.length}.`
+        );
 
         return {
           content: [
