@@ -1,5 +1,8 @@
 import "dotenv/config";
 
+import { appendFile, mkdir } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 
 const MODEL_NAME = "nomic-embed-text";
@@ -28,6 +31,57 @@ function nanosecondsToMilliseconds(value?: number): string | null {
   return (value / 1_000_000).toFixed(1);
 }
 
+function getLogDirectory(): string {
+  if (process.env.CONTEXTVAULT_LOG_DIR) {
+    return process.env.CONTEXTVAULT_LOG_DIR;
+  }
+
+  if (process.env.LOCALAPPDATA) {
+    return join(process.env.LOCALAPPDATA, "ContextVault", "logs");
+  }
+
+  if (process.platform === "darwin") {
+    return join(homedir(), "Library", "Logs", "ContextVault");
+  }
+
+  return join(homedir(), ".local", "state", "contextvault", "logs");
+}
+
+function logEmbeddingDiagnostic(
+  level: "info" | "warn" | "error",
+  message: string
+): void {
+  const line = `[ContextVault] ${message}`;
+
+  if (level === "error") {
+    console.error(line);
+  } else if (level === "warn") {
+    console.warn(line);
+  } else {
+    console.info(line);
+  }
+
+  // The Windows desktop launcher runs the app hidden. Persisting diagnostics
+  // makes timing and timeout information available even without a console.
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  const logDirectory = getLogDirectory();
+  const logPath = join(logDirectory, "embedding.log");
+  const logLine = `${new Date().toISOString()} ${line}\n`;
+
+  void mkdir(logDirectory, { recursive: true })
+    .then(() => appendFile(logPath, logLine, "utf8"))
+    .catch((error: unknown) => {
+      const details = error instanceof Error ? error.message : String(error);
+      console.warn(
+        "[ContextVault] Could not write the embedding diagnostic log:",
+        details
+      );
+    });
+}
+
 export async function generateEmbedding(
   text: string
 ): Promise<number[]> {
@@ -40,7 +94,7 @@ export async function generateEmbedding(
   const baseUrl = (
     process.env.OLLAMA_URL ??
     "http://localhost:11434"
-  ).replace(/\/+$/, "");
+  ).replace(/\\/+$/, "");
 
   const endpoint = `${baseUrl}/api/embed`;
   const timeoutMs = getEmbeddingTimeoutMs();
@@ -70,9 +124,9 @@ export async function generateEmbedding(
         : String(error);
 
     if (error instanceof Error && error.name === "TimeoutError") {
-      console.error(
-        `[ContextVault] Ollama embedding timed out after ${elapsedMs}ms ` +
-        `(configured timeout: ${timeoutMs}ms, model: ${MODEL_NAME}).`
+      logEmbeddingDiagnostic(
+        "error",
+        `Ollama embedding timed out after ${elapsedMs}ms (configured timeout: ${timeoutMs}ms, model: ${MODEL_NAME}).`
       );
       throw new Error(
         `Ollama embedding request timed out after ${timeoutMs}ms at ${endpoint}. ` +
@@ -81,8 +135,9 @@ export async function generateEmbedding(
       );
     }
 
-    console.error(
-      `[ContextVault] Ollama embedding request failed after ${elapsedMs}ms: ${details}`
+    logEmbeddingDiagnostic(
+      "error",
+      `Ollama embedding request failed after ${elapsedMs}ms: ${details}`
     );
     throw new Error(
       `Cannot connect to Ollama at ${endpoint}. ` +
@@ -98,8 +153,9 @@ export async function generateEmbedding(
     responseBody = await response.text();
   } catch (error) {
     const elapsedMs = (performance.now() - startedAt).toFixed(1);
-    console.error(
-      `[ContextVault] Could not read Ollama response after ${elapsedMs}ms.`
+    logEmbeddingDiagnostic(
+      "error",
+      `Could not read Ollama response after ${elapsedMs}ms.`
     );
     throw new Error("Could not read Ollama's embedding response.", { cause: error });
   }
@@ -107,9 +163,9 @@ export async function generateEmbedding(
   const elapsedMs = performance.now() - startedAt;
 
   if (!response.ok) {
-    console.error(
-      `[ContextVault] Ollama embedding failed with HTTP ${response.status} ` +
-      `after ${elapsedMs.toFixed(1)}ms.`
+    logEmbeddingDiagnostic(
+      "error",
+      `Ollama embedding failed with HTTP ${response.status} after ${elapsedMs.toFixed(1)}ms.`
     );
     throw new Error(
       `Ollama returned HTTP ${response.status}. ` +
@@ -122,8 +178,9 @@ export async function generateEmbedding(
   try {
     data = JSON.parse(responseBody) as OllamaEmbedResponse;
   } catch (error) {
-    console.error(
-      `[ContextVault] Ollama returned invalid JSON after ${elapsedMs.toFixed(1)}ms.`
+    logEmbeddingDiagnostic(
+      "error",
+      `Ollama returned invalid JSON after ${elapsedMs.toFixed(1)}ms.`
     );
     throw new Error(
       `Ollama returned an invalid JSON response: ${responseBody}`,
@@ -162,9 +219,9 @@ export async function generateEmbedding(
     apiTotalMs === null ? null : `ollama_total=${apiTotalMs}ms`
   ].filter(Boolean).join(", ");
 
-  console.info(
-    `[ContextVault] Embedding completed in ${elapsedMs.toFixed(1)}ms ` +
-    `(model=${MODEL_NAME}${metrics ? `, ${metrics}` : ""}, keep_alive=${keepAlive}).`
+  logEmbeddingDiagnostic(
+    "info",
+    `Embedding completed in ${elapsedMs.toFixed(1)}ms (model=${MODEL_NAME}${metrics ? `, ${metrics}` : ""}, keep_alive=${keepAlive}).`
   );
 
   return embedding;
@@ -183,14 +240,15 @@ export async function warmupEmbeddingModel(): Promise<void> {
 
   try {
     await generateEmbedding("ContextVault startup warm-up");
-    console.info(
-      `[ContextVault] Ollama embedding model warm-up completed in ` +
-      `${(performance.now() - startedAt).toFixed(1)}ms.`
+    logEmbeddingDiagnostic(
+      "info",
+      `Ollama embedding model warm-up completed in ${(performance.now() - startedAt).toFixed(1)}ms.`
     );
   } catch (error) {
-    console.warn(
-      "[ContextVault] Ollama model warm-up was skipped; the model will load on the first embedding request.",
-      error
+    logEmbeddingDiagnostic(
+      "warn",
+      "Ollama model warm-up was skipped; the model will load on the first embedding request. " +
+      (error instanceof Error ? error.message : String(error))
     );
   }
 }
