@@ -8,7 +8,7 @@ There are three distinct pieces:
 
 1. **ContextVault application** — the local app, dashboard, indexer, Ollama integration, and SQLite database. Install it from this GitHub repository.
 2. **ContextVault local MCP server** — the stdio server that exposes `index_project` and `search_context` to a local AI client. Configure it separately in that client.
-3. **ContextVault on Agensi** — an agent-instruction skill (`SKILL.md)) distributed by Agensi. Installing or invoking the Agensi skill does **not** download the ContextVault application or configure the local MCP server. Agensi's marketplace MCP connection is separate from ContextVault's local MCP connection.
+3. **ContextVault on Agensi** — an agent-instruction skill (`SKILL.md`) distributed by Agensi. Installing or invoking the Agensi skill does **not** download the ContextVault application or configure the local MCP server. Agensi's marketplace MCP connection is separate from ContextVault's local MCP connection.
 
 For ContextVault code search to work, the local application must be installed and the local MCP tools must be connected to the same AI client that is using the skill. Do not assume the Agensi connection provides the ContextVault tools.
 
@@ -149,7 +149,7 @@ Embedding requests keep the model loaded for 30 minutes by default. The request 
 | `OLLAMA_EMBED_TIMEOUT_MS` | `120000` | Maximum time to wait for one embedding request. Values below 1000 are ignored. |
 | `OLLAMA_URL` | `http://localhost:11434` | Local Ollama API base URL. |
 
-ContextVault logs the wall-clock embedding duration for every successful request. When Ollama returns timing metadata, the log also includes model-load and total server time. Timeout and HTTP errors are logged with elapsed time and a clear error message. Use these logs to distinguish model-load delay from ongoing embedding latency; warm-up may reduce cold-start delay but does not guarantee a fixed search time on every computer.
+ContextVault logs the wall-clock embedding duration for every successful request. When Ollama returns timing metadata, the log also includes model-load and total server time. Timeout and HTTP errors are logged with elapsed time and a clear error message. Diagnostics are persisted to `embedding.log` under `%LOCALAPPDATA%\\ContextVault\\logs` on Windows, `~/Library/Logs/ContextVault` on macOS, or `~/.local/state/contextvault/logs` on Linux. Set `CONTEXTVAULT_LOG_DIR` to override the log directory. Use these logs to distinguish model-load delay from ongoing embedding latency; warm-up may reduce cold-start delay but does not guarantee a fixed search time on every computer.
 
 ## Troubleshooting
 
