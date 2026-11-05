@@ -409,8 +409,13 @@ function Start-OllamaService {
     if ($ListenerPid) {
         $ListenerProcess = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $ListenerPid" -ErrorAction SilentlyContinue
         $ListenerPath = if ($ListenerProcess) { [string]$ListenerProcess.ExecutablePath } else { '' }
+        $OllamaAppExe = Get-OllamaAppExe -OllamaCliPath $OllamaCliPath
+        $IsOllamaListener = $ListenerPath -and (
+            ($ListenerPath -ieq $OllamaCliPath) -or
+            ($OllamaAppExe -and ($ListenerPath -ieq $OllamaAppExe))
+        )
 
-        if ($ListenerPath -and ($ListenerPath -ieq $OllamaCliPath)) {
+        if ($IsOllamaListener) {
             Write-Info "An unresponsive Ollama process (PID $ListenerPid) owns port 11434. Restarting that exact Ollama executable..."
             $TaskkillExe = Join-Path $env:SystemRoot 'System32\taskkill.exe'
             & $TaskkillExe /F /PID $ListenerPid | Out-Null
