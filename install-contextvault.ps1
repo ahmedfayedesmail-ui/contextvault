@@ -368,14 +368,94 @@ function Test-OllamaApi {
 }
 
 function Get-OllamaListenerPid {
-    # Inspect the listener before starting another Ollama process. Never terminate an
-    # arbitrary process that happens to own port 11434.
     $NetstatExe = Join-Path $env:SystemRoot 'System32\netstat.exe'
     if (-not (Test-Path -LiteralPath $NetstatExe -PathType Leaf)) { return $null }
 
     $NetstatLines = & $NetstatExe -ano -p tcp 2>$null
     foreach ($Line in $NetstatLines) {
-        if ($Line -match '^\s*TCP\s+\S+:11434\s+\S+\s+LISTENING\s+(\d+)\s*
+        if ($Line -match '^\s*TCP\s+\S+:11434\s+\S+\s+LISTENING\s+(\d+)\s*$') {
+            return [int]$Matches[1]
+        }
+    }
+    return $null
+}
+
+function Get-OllamaAppExe {
+    param([Parameter(Mandatory = $true)][string]$OllamaCliPath)
+
+    $Candidate = Join-Path (Split-Path -Parent $OllamaCliPath) 'ollama app.exe'
+    if (Test-Path -LiteralPath $Candidate -PathType Leaf) {
+        return [IO.Path]::GetFullPath($Candidate)
+    }
+    return $null
+}
+
+function Wait-OllamaApi {
+    param([ValidateRange(1, 120)][int]$TimeoutSeconds = 30)
+
+    for ($Attempt = 0; $Attempt -lt $TimeoutSeconds; $Attempt++) {
+        if (Test-OllamaApi) { return $true }
+        Start-Sleep -Seconds 1
+    }
+    return (Test-OllamaApi)
+}
+
+function Start-OllamaService {
+    param([Parameter(Mandatory = $true)][string]$OllamaCliPath)
+
+    if (Test-OllamaApi) { return $true }
+
+    $ListenerPid = Get-OllamaListenerPid
+    if ($ListenerPid) {
+        $ListenerProcess = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $ListenerPid" -ErrorAction SilentlyContinue
+        $ListenerPath = if ($ListenerProcess) { [string]$ListenerProcess.ExecutablePath } else { '' }
+
+        if ($ListenerPath -and ($ListenerPath -ieq $OllamaCliPath)) {
+            Write-Info "An unresponsive Ollama process (PID $ListenerPid) owns port 11434. Restarting that exact Ollama executable..."
+            $TaskkillExe = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+            & $TaskkillExe /F /PID $ListenerPid | Out-Null
+            Start-Sleep -Seconds 2
+        }
+        else {
+            $ListenerName = if ($ListenerPath) { [IO.Path]::GetFileName($ListenerPath) } else { 'unknown process' }
+            throw "Port 11434 is already owned by PID $ListenerPid ($ListenerName), and it is not responding as this Ollama installation. The installer will not terminate an unrelated process."
+        }
+    }
+
+    $LogDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ContextVault\logs'
+    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+    $StdoutLog = Join-Path $LogDirectory 'ollama-serve.stdout.log'
+    $StderrLog = Join-Path $LogDirectory 'ollama-serve.stderr.log'
+    Remove-Item -LiteralPath $StdoutLog, $StderrLog -Force -ErrorAction SilentlyContinue
+
+    $env:OLLAMA_HOST = '127.0.0.1:11434'
+    Write-Info 'Starting Ollama with its absolute executable path...'
+    try {
+        Start-Process -FilePath $OllamaCliPath -ArgumentList 'serve' -WorkingDirectory (Split-Path -Parent $OllamaCliPath) -WindowStyle Hidden -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog | Out-Null
+    }
+    catch {
+        Write-Host "[ContextVault] Could not launch ollama.exe serve: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
+    if (Wait-OllamaApi -TimeoutSeconds 30) { return $true }
+
+    $OllamaAppExe = Get-OllamaAppExe -OllamaCliPath $OllamaCliPath
+    if ($OllamaAppExe) {
+        Write-Info 'The CLI did not expose the API. Starting the Ollama tray application...'
+        try {
+            Start-Process -FilePath $OllamaAppExe | Out-Null
+        }
+        catch {
+            Write-Host "[ContextVault] Could not launch the Ollama app: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+
+        if (Wait-OllamaApi -TimeoutSeconds 30) { return $true }
+    }
+
+    Write-Host '[ContextVault] Ollama is installed but the service did not start automatically. Please open the Ollama app from your Start Menu, then re-run this installer.' -ForegroundColor Yellow
+    Write-Host "[ContextVault] Ollama startup logs: $StdoutLog and $StderrLog" -ForegroundColor Yellow
+    return $false
+}
 
 function Invoke-HiddenAndWait {
     param(
@@ -465,7 +545,7 @@ try {
         $OllamaExePath = [string]$OllamaExe
     }
     if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {
-        throw "Ollama executable was not found at the resolved path: $OllamaExePath."
+        throw "Ollama executable was not found at the resolved absolute path: $OllamaExePath."
     }
 
     if ($EnableOllamaStartup) {
@@ -590,334 +670,6 @@ End If
     $OllamaAppExe = Get-OllamaAppExe -OllamaCliPath $OllamaExePath
     if (-not $OllamaAppExe) { $OllamaAppExe = $OllamaExePath }
     $LauncherContent = $LauncherContent.Replace('__PROJECT_ROOT__', $ProjectRoot).Replace('__OLLAMA_EXE__', $OllamaExePath).Replace('__OLLAMA_APP_EXE__', $OllamaAppExe).Replace('__NODE_EXE__', $NodeExe).Replace('__NPM_CLI__', $NpmCli)
-    Set-Content -LiteralPath $LauncherScript -Value $LauncherContent -Encoding ASCII
-
-    $DesktopPath = [Environment]::GetFolderPath('Desktop')
-    if (-not (Test-Path -LiteralPath $DesktopPath -PathType Container)) {
-        New-Item -ItemType Directory -Path $DesktopPath -Force | Out-Null
-    }
-
-    $ShortcutPath = Join-Path $DesktopPath 'ContextVault.lnk'
-    $WScriptExe = Join-Path $env:WINDIR 'System32\wscript.exe'
-    $Shell = New-Object -ComObject WScript.Shell
-    $Shortcut = $Shell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = $WScriptExe
-    $Shortcut.Arguments = '"' + $LauncherScript + '"'
-    $Shortcut.WorkingDirectory = $ProjectRoot
-    $Shortcut.Description = 'Start ContextVault and open the local dashboard'
-    $Shortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll, 13"
-    $Shortcut.Save()
-
-    Write-Step 'Verifying setup and opening ContextVault.'
-    Write-Info 'Node.js, Ollama, the embedding model, and project dependencies are ready.'
-    Write-Info "Desktop shortcut created: $ShortcutPath"
-    Write-Info "Installer log: $script:LogPath"
-
-    if ($script:TranscriptStarted) {
-        Stop-Transcript | Out-Null
-        $script:TranscriptStarted = $false
-    }
-
-    Start-Process -FilePath $WScriptExe -ArgumentList ('"' + $LauncherScript + '"')
-}
-catch {
-    Write-Host "[ContextVault] Installation failed: $($_.Exception.Message)" -ForegroundColor Red
-    if ($script:LogPath) {
-        Write-Host "[ContextVault] Review the detailed log: $script:LogPath" -ForegroundColor Yellow
-    }
-    Write-Host '[ContextVault] No project source files were modified by the installer.' -ForegroundColor Yellow
-
-    if ($script:TranscriptStarted) {
-        Stop-Transcript | Out-Null
-        $script:TranscriptStarted = $false
-    }
-
-    Read-Host 'Press Enter to close'
-    exit 1
-}
-) {
-            return [int]$Matches[1]
-        }
-    }
-    return $null
-}
-
-function Get-OllamaAppExe {
-    param([Parameter(Mandatory = $true)][string]$OllamaCliPath)
-
-    $Candidate = Join-Path (Split-Path -Parent $OllamaCliPath) 'ollama app.exe'
-    if (Test-Path -LiteralPath $Candidate -PathType Leaf) {
-        return [IO.Path]::GetFullPath($Candidate)
-    }
-    return $null
-}
-
-function Wait-OllamaApi {
-    param([ValidateRange(1, 120)][int]$TimeoutSeconds = 30)
-
-    for ($Attempt = 0; $Attempt -lt $TimeoutSeconds; $Attempt++) {
-        if (Test-OllamaApi) { return $true }
-        Start-Sleep -Seconds 1
-    }
-    return $false
-}
-
-function Start-OllamaService {
-    param([Parameter(Mandatory = $true)][string]$OllamaCliPath)
-
-    if (Test-OllamaApi) { return $true }
-
-    $ListenerPid = Get-OllamaListenerPid
-    if ($ListenerPid) {
-        $ListenerProcess = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $ListenerPid" -ErrorAction SilentlyContinue
-        $ListenerName = if ($ListenerProcess) { [IO.Path]::GetFileName([string]$ListenerProcess.ExecutablePath) } else { 'unknown process' }
-
-        if ($ListenerName -ieq 'ollama.exe') {
-            Write-Info "An Ollama process (PID $ListenerPid) already owns port 11434. Waiting for its API..."
-            return (Wait-OllamaApi -TimeoutSeconds 30)
-        }
-
-        throw "Port 11434 is already owned by PID $ListenerPid ($ListenerName), and it is not responding as Ollama. The installer will not terminate an unrelated process."
-    }
-
-    $LogDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ContextVault\logs'
-    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
-    $StdoutLog = Join-Path $LogDirectory 'ollama-serve.stdout.log'
-    $StderrLog = Join-Path $LogDirectory 'ollama-serve.stderr.log'
-    Remove-Item -LiteralPath $StdoutLog, $StderrLog -Force -ErrorAction SilentlyContinue
-
-    $env:OLLAMA_HOST = '127.0.0.1:11434'
-    Write-Info 'Starting Ollama with its absolute executable path...'
-    try {
-        Start-Process -FilePath $OllamaCliPath -ArgumentList 'serve' -WorkingDirectory (Split-Path -Parent $OllamaCliPath) -WindowStyle Hidden -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog | Out-Null
-    }
-    catch {
-        Write-Host "[ContextVault] Could not launch ollama.exe serve: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-
-    if (Wait-OllamaApi -TimeoutSeconds 30) { return $true }
-
-    # Some Windows installations start the tray application (which owns the local
-    # server lifecycle) rather than a standalone CLI process. Try that app once.
-    $OllamaAppExe = Get-OllamaAppExe -OllamaCliPath $OllamaCliPath
-    if ($OllamaAppExe) {
-        Write-Info 'The CLI did not expose the API. Starting the Ollama tray application...'
-        try {
-            Start-Process -FilePath $OllamaAppExe -WindowStyle Hidden | Out-Null
-        }
-        catch {
-            Write-Host "[ContextVault] Could not launch the Ollama app: $($_.Exception.Message)" -ForegroundColor Yellow
-        }
-
-        if (Wait-OllamaApi -TimeoutSeconds 30) { return $true }
-    }
-
-    Write-Host '[ContextVault] Ollama is installed but the service did not start automatically. Please open the Ollama app from your Start Menu, then re-run this installer.' -ForegroundColor Yellow
-    Write-Host "[ContextVault] Ollama startup logs: $StdoutLog and $StderrLog" -ForegroundColor Yellow
-    return $false
-}
-
-function Invoke-HiddenAndWait {
-    param(
-        [Parameter(Mandatory = $true)][string]$FilePath,
-        [Parameter(Mandatory = $true)][string]$Arguments,
-        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
-        [Parameter(Mandatory = $true)][string]$FailureMessage
-    )
-    $Process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WorkingDirectory $WorkingDirectory -WindowStyle Hidden -Wait -PassThru
-    if ($Process.ExitCode -ne 0) { throw "$FailureMessage (exit code $($Process.ExitCode))." }
-}
-
-try {
-    Write-Step 'Checking the extracted ContextVault project.'
-    $ProjectRoot = [IO.Path]::GetFullPath($PSScriptRoot)
-    if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'package.json') -PathType Leaf)) {
-        throw 'Extract the complete ContextVault repository and run this installer from its root folder.'
-    }
-
-    Write-Step 'Checking for Node.js 22.13 or newer.'
-    Write-Info 'Locating an existing supported Node.js installation...'
-    $NodeInfo = Get-SupportedNodeInfo
-
-    # Preserve a preinstalled Node.js 22.13+ / 23 / 24 runtime. Install a private fallback only when none exists.
-    if (-not $NodeInfo) {
-        $NodeInfo = Install-Node22Runtime
-    }
-
-    $NodeExe = $NodeInfo.Exe
-    $NodeHome = $NodeInfo.Home
-    $NodeVersionText = (& $NodeExe --version 2>$null | Select-Object -First 1).Trim()
-    Write-Info "Using Node.js $NodeVersionText at $NodeExe"
-
-    # Use npm.cmd next to the exact node.exe, via an absolute cmd.exe path.
-    $NpmCommand = Join-Path $NodeHome 'npm.cmd'
-    $NpmCli = Join-Path $NodeHome 'node_modules\npm\bin\npm-cli.js'
-    if (-not (Test-Path -LiteralPath $NpmCommand -PathType Leaf)) {
-        throw "npm.cmd was not found beside the selected node.exe: $NpmCommand"
-    }
-    if (-not (Test-Path -LiteralPath $NpmCli -PathType Leaf)) {
-        throw "npm-cli.js was not found beside the selected node.exe: $NpmCli"
-    }
-
-    Write-Step 'Checking for Ollama.'
-    Write-Info 'Checking for Ollama...'
-    $OllamaExe = Get-OllamaExe
-
-    if ($OllamaExe) {
-        Write-Info 'Ollama found, skipping download.'
-    }
-    else {
-        $OllamaExe = Install-OllamaViaWinget
-    }
-
-    if (-not $OllamaExe) {
-        $OllamaDownloadUrl = 'https://ollama.com/download/windows'
-        Write-Host "[ContextVault] Ollama installation failed. Please install manually from $OllamaDownloadUrl" -ForegroundColor Yellow
-        try {
-            Start-Process -FilePath $OllamaDownloadUrl | Out-Null
-        }
-        catch {
-            Write-Host "[ContextVault] Could not open the browser automatically: $($_.Exception.Message)" -ForegroundColor Yellow
-        }
-
-        Write-Host '[ContextVault] Please install Ollama from the opened page, then run install-contextvault.ps1 again.' -ForegroundColor Yellow
-        Write-Host '[ContextVault] The installer is stopping here; no Ollama download timeout will run in the background.' -ForegroundColor Yellow
-
-        if ($script:TranscriptStarted) {
-            Stop-Transcript | Out-Null
-            $script:TranscriptStarted = $false
-        }
-
-        Read-Host 'Press Enter to close this installer window after reading the instructions'
-        exit 0
-    }
-
-    $OllamaExe = [IO.Path]::GetFullPath([string]$OllamaExe)
-
-    if (-not (Test-Path -LiteralPath $OllamaExe -PathType Leaf)) {
-        throw "Ollama executable was not found at $OllamaExe."
-    }
-
-    # Prefer the standard per-user install path, then the discovered executable, then PATH.
-    # Keep the value scalar so Start-Process never receives an Object[].
-    $OllamaExePath = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
-    if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {
-        $OllamaExePath = [string]$OllamaExe
-    }
-    if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {
-        $OllamaExePath = 'ollama'
-    }
-
-    if (-not (Test-OllamaApi)) {
-        Write-Info 'Starting Ollama in the background...'
-        if (Test-Path -LiteralPath $OllamaExePath -PathType Leaf) {
-            Start-Process -FilePath ([string]$OllamaExePath) -ArgumentList "serve" -WindowStyle Hidden | Out-Null
-        } else {
-            Start-Process -FilePath 'ollama' -ArgumentList 'serve' -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
-            $OllamaExePath = 'ollama'
-        }
-        Start-Sleep -Seconds 3
-
-        $OllamaReady = $false
-        for ($Attempt = 0; $Attempt -lt 90; $Attempt++) {
-            if (Test-OllamaApi) { $OllamaReady = $true; break }
-            Start-Sleep -Seconds 1
-        }
-        if (-not $OllamaReady) { throw 'Ollama did not start on localhost:11434.' }
-    }
-
-    Write-Step 'Checking and preparing the nomic-embed-text model.'
-    Write-Info 'Checking the nomic-embed-text model...'
-    $ModelList = & $OllamaExePath list 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'Ollama could not list its installed models.' }
-    if (($ModelList -join [Environment]::NewLine) -notmatch 'nomic-embed-text') {
-        Write-Info 'Downloading nomic-embed-text...'
-        & $OllamaExePath pull nomic-embed-text
-        if ($LASTEXITCODE -ne 0) { throw 'The nomic-embed-text model download failed.' }
-    }
-
-    Write-Info 'Verifying the embedding model is available...'
-    $VerifiedModelList = & $OllamaExePath list 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'Ollama could not verify its installed models after the model check.' }
-    if (($VerifiedModelList -join [Environment]::NewLine) -notmatch 'nomic-embed-text') {
-        throw 'nomic-embed-text is still missing after the download attempt. ContextVault cannot index projects.'
-    }
-
-    Write-Step 'Installing ContextVault dependencies.'
-    Write-Info 'npm output is shown in this window and saved in the installer log.'
-    $env:PATH = "$NodeHome;$env:PATH"
-    Push-Location $ProjectRoot
-    try {
-        & $NodeExe $NpmCli 'install' '--no-audit' '--no-fund'
-        $NpmExitCode = $LASTEXITCODE
-    }
-    finally {
-        Pop-Location
-    }
-
-    if ($NpmExitCode -ne 0) {
-        throw "npm install failed with exit code $NpmExitCode. Review the npm output and installer log."
-    }
-
-    $TsxCli = Join-Path $ProjectRoot 'node_modules\tsx\dist\cli.mjs'
-    if (-not (Test-Path -LiteralPath $TsxCli -PathType Leaf)) {
-        throw "Dependencies were installed, but the tsx runtime was not found at $TsxCli."
-    }
-    Write-Info 'ContextVault dependencies were installed and verified.'
-
-    Write-Step 'Creating the ContextVault desktop launcher.'
-
-    # The VBS launcher calls node.exe and npm-cli.js by absolute path; PATH is not involved.
-    $LocalAppData = [Environment]::GetFolderPath('LocalApplicationData')
-    $LauncherDirectory = Join-Path $LocalAppData 'ContextVault'
-    New-Item -ItemType Directory -Path $LauncherDirectory -Force | Out-Null
-    $LauncherScript = Join-Path $LauncherDirectory 'ContextVault-Launcher.vbs'
-
-    $LauncherContent = @'
-Set shell = CreateObject("WScript.Shell")
-shell.CurrentDirectory = "__PROJECT_ROOT__"
-
-Function HttpReady(url)
-    On Error Resume Next
-    Set request = CreateObject("WinHttp.WinHttpRequest.5.1")
-    request.SetTimeouts 500, 500, 1000, 1000
-    request.Open "GET", url, False
-    request.Send
-    HttpReady = (Err.Number = 0 And request.Status = 200)
-    Err.Clear
-    On Error GoTo 0
-End Function
-
-If Not HttpReady("http://localhost:11434/api/tags") Then
-    shell.Run Chr(34) & "__OLLAMA_EXE__" & Chr(34) & " serve", 0, False
-    For i = 1 To 60
-        WScript.Sleep 1000
-        If HttpReady("http://localhost:11434/api/tags") Then Exit For
-    Next
-End If
-
-If Not HttpReady("http://localhost:11434/api/tags") Then
-    MsgBox "Ollama could not start. Please restart Windows and try again.", vbExclamation, "ContextVault"
-    WScript.Quit 1
-End If
-
-If Not HttpReady("http://localhost:3737/health") Then
-    command = Chr(34) & "__NODE_EXE__" & Chr(34) & " " & Chr(34) & "__NPM_CLI__" & Chr(34) & " run dev"
-    shell.Run command, 0, False
-    For i = 1 To 45
-        WScript.Sleep 1000
-        If HttpReady("http://localhost:3737/health") Then Exit For
-    Next
-End If
-
-If HttpReady("http://localhost:3737/health") Then
-    shell.Run "http://localhost:3737", 1, False
-Else
-    MsgBox "ContextVault could not start. Restart Windows and try again.", vbExclamation, "ContextVault"
-End If
-'@
-
-    $LauncherContent = $LauncherContent.Replace('__PROJECT_ROOT__', $ProjectRoot).Replace('__OLLAMA_EXE__', $OllamaExePath).Replace('__NODE_EXE__', $NodeExe).Replace('__NPM_CLI__', $NpmCli)
     Set-Content -LiteralPath $LauncherScript -Value $LauncherContent -Encoding ASCII
 
     $DesktopPath = [Environment]::GetFolderPath('Desktop')
