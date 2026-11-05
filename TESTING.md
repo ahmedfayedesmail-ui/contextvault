@@ -84,7 +84,7 @@ Record which path ran in the final report. A successful fallback handoff is a pa
 8. Verify that Ollama responds:
 
    ```powershell
-   Invoke-RestMethod "http://localhost:11434/api/tags" | ConvertTo-Json -Depth 5
+   Invoke-RestMethod "http://127.0.0.1:11434/api/tags" | ConvertTo-Json -Depth 5
    ```
 
    Confirm the model list contains `nomic-embed-text`.
