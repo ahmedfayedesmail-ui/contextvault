@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { generateEmbedding } from "./indexer/embedder";
+import { generateEmbedding, warmupEmbeddingModel } from "./indexer/embedder";
 import { indexProject } from "./indexer/pipeline";
 import { searchVectors } from "./storage/vectors";
 
@@ -129,4 +129,8 @@ export async function startMcpServer(): Promise<void> {
   const transport = new StdioServerTransport();
 
   await server.connect(transport);
+
+  // Warm the shared local Ollama model in the background so the first MCP
+  // search does not pay the full cold model-load cost.
+  void warmupEmbeddingModel();
 }
