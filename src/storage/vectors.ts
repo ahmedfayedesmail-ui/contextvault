@@ -94,7 +94,7 @@ export function saveIndexedData(
     )
     VALUES (?, ?, ?, ?, ?, ?)
 
-    ON CONFLICT(path) DO UPDATE SET
+    ON CONFLICT(root_path, path) DO UPDATE SET
       root_path = excluded.root_path,
       content = excluded.content,
       mtime = excluded.mtime,
@@ -106,7 +106,7 @@ export function saveIndexedData(
   const findFileId = database.prepare(`
     SELECT id
     FROM files
-    WHERE path = ?
+    WHERE path = ? AND root_path = ?
   `);
 
   const deleteChunks = database.prepare(`
@@ -142,7 +142,8 @@ export function saveIndexedData(
       );
 
       const row = findFileId.get(
-        file.path
+        file.path,
+        rootPath ? path.resolve(rootPath) : ""
       ) as FileIdRow | undefined;
 
       if (!row) {
@@ -467,6 +468,7 @@ export function searchVectors(
       ON files.id = chunks.file_id
 
     WHERE chunks.embedding IS NOT NULL
+      AND files.root_path <> ''
   `).all() as StoredVectorRow[];
 
   const results: SearchResult[] = [];
