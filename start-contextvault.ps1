@@ -27,6 +27,20 @@ function Test-OllamaApi {
     }
 }
 
+function Test-ContextVaultApi {
+    try {
+        $null = Invoke-WebRequest `
+            -Uri 'http://localhost:3737/health' `
+            -TimeoutSec 2 `
+            -UseBasicParsing `
+            -ErrorAction Stop
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
 try {
     $ProjectRoot = (Resolve-Path -LiteralPath $PSScriptRoot).Path
     if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'package.json'))) {
@@ -143,16 +157,33 @@ try {
         }
     }
 
-    # Run the server in its own terminal so its logs remain visible.
-    Write-Info 'Starting ContextVault in a new terminal window...'
-    $ServerCommand = "cd /d `"$ProjectRoot`" && npm run dev"
-    Start-Process -FilePath $env:ComSpec `
-        -ArgumentList @('/k', $ServerCommand) `
-        -WorkingDirectory $ProjectRoot | Out-Null
+    # Reuse an already-running local app instead of starting a second server.
+    if (-not (Test-ContextVaultApi)) {
+        Write-Info 'Starting ContextVault in a new terminal window...'
+        $ServerCommand = "cd /d `"$ProjectRoot`" && npm run dev"
+        Start-Process -FilePath $env:ComSpec `
+            -ArgumentList @('/k', $ServerCommand) `
+            -WorkingDirectory $ProjectRoot | Out-Null
 
-    Start-Sleep -Seconds 3
+        $AppReady = $false
+        for ($Attempt = 0; $Attempt -lt 45; $Attempt++) {
+            Start-Sleep -Seconds 1
+            if (Test-ContextVaultApi) {
+                $AppReady = $true
+                break
+            }
+        }
+
+        if (-not $AppReady) {
+            throw 'ContextVault did not become ready at http://localhost:3737. Check the server terminal for the startup error.'
+        }
+    }
+    else {
+        Write-Info 'ContextVault is already running.'
+    }
+
     Start-Process -FilePath 'http://localhost:3737' | Out-Null
-    Write-Info 'ContextVault is opening at http://localhost:3737.'
+    Write-Info 'ContextVault is ready at http://localhost:3737.'
 }
 catch {
     Write-Host "[ContextVault] $($_.Exception.Message)" -ForegroundColor Red
