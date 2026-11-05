@@ -329,8 +329,14 @@ function Install-OllamaViaWinget {
     }
 
     Write-Info 'Installing Ollama via winget...'
-    & $WingetExe install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements
-    $WingetExitCode = $LASTEXITCODE
+    try {
+        & $WingetExe install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements
+        $WingetExitCode = $LASTEXITCODE
+    }
+    catch {
+        Write-Host "[ContextVault] winget could not complete the installation: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $null
+    }
 
     if ($WingetExitCode -ne 0) {
         Write-Host "[ContextVault] winget installation failed with exit code $WingetExitCode." -ForegroundColor Yellow
@@ -429,7 +435,9 @@ try {
             Stop-Transcript | Out-Null
             $script:TranscriptStarted = $false
         }
-        return
+
+        Read-Host 'Press Enter to close this installer window after reading the instructions'
+        exit 0
     }
 
     $OllamaExe = [IO.Path]::GetFullPath([string]$OllamaExe)
