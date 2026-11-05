@@ -1,5 +1,7 @@
 # ContextVault MCP Server — Setup and User Guide
 
+For the planned fresh-install, MCP Inspector, indexing, search, and embedding-latency checks, follow the [Comprehensive testing guide](TESTING.md).
+
 ContextVault gives a compatible local AI coding client access to a semantic index of a project on the same computer. The application indexes selected project files, generates embeddings with local Ollama, and stores the index in local SQLite. Its MCP server exposes two tools: `index_project` and `search_context`.
 
 ## Important: the application, the local MCP server, and the Agensi skill are separate
