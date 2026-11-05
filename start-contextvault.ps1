@@ -57,7 +57,7 @@ try {
 
     $NodeVersionText = (& $NodeCommand.Source --version 2>$null).Trim()
     $NodeVersion = [version]$NodeVersionText.TrimStart('v')
-    if ($NodeVersion.Major -ne 22 -or $NodeVersion -lt [version]'22.13.0') {
+    if ($NodeVersion -lt [version]'22.13.0') {
         throw "Node.js 22.13 or newer is required. Detected $NodeVersionText. Run install-contextvault.ps1 to prepare the supported runtime."
     }
     Write-Info "Using Node.js $NodeVersionText."
