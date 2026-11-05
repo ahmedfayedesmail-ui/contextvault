@@ -4,7 +4,7 @@
 **Scope:** Windows 10 22H2 or Windows 11, followed by one MCP indexing/search run and an embedding-latency measurement.  
 **Status:** This is a test plan. The checks below have **not** been run against a clean Windows machine yet.
 
-Run the sections in order in one planned test session. Use a disposable Windows VM or spare test computer. Do not uninstall Node.js or Ollama from a daily-use computer just to create a clean test.
+Run the sections in order in one planned test session. Use a disposable Windows VM or spare test computer. Do not uninstall Node.js or Ollama from a daily-use computer just to create a clean test. Project indexing in this branch sends up to 16 chunks per Ollama embedding request; a large file is split across multiple batches.
 
 ## 1. Before starting
 
@@ -201,7 +201,7 @@ The purpose of this section is to determine whether the original 15.6-second Ins
    ```
 
 4. Run the same `search_context` query three times in MCP Inspector after the warm-up has completed. Record the duration shown for each MCP tool call.
-5. Refresh `embedding.log` after each call. Successful embedding requests should contain a line similar to:
+5. Refresh `embedding.log` after each call. Successful single-text embedding requests (such as warm-up or search) should contain a line similar to:
 
    ```text
    [ContextVault] Embedding completed in 420.0ms (model=nomic-embed-text, model_load=0.0ms, ollama_total=380.0ms, keep_alive=30m).
@@ -209,10 +209,21 @@ The purpose of this section is to determine whether the original 15.6-second Ins
 
    The numbers above are **illustrative only**, not a promised or measured ContextVault result. Ollama may omit timing fields in some responses.
 
+For project indexing, batched requests should contain a line similar to:
+
+   ```text
+   [ContextVault] Embedding batch completed (items=16) in 1,250.0ms (model=nomic-embed-text, model_load=0.0ms, ollama_total=1,200.0ms, keep_alive=30m).
+   ```
+
+   The final batch for a file may contain fewer than 16 items. Batch size is currently 16 chunks per request. The numbers above are illustrative only.
+
+
 6. Record these values for the warm-up and each of the three searches:
-   - Embedder wall-clock duration: the number after `Embedding completed in`.
+   - Embedder wall-clock duration: the number after `Embedding completed in` for a single-text request, or `Embedding batch completed (items=N) in` for an indexing batch.
    - Ollama model load: the number after `model_load=`, when returned.
    - Ollama total duration: the number after `ollama_total=`, when returned.
+   - Local vector-search duration: the `vector_search=` value in the MCP or HTTP search profiling console line.
+   - Total search-handler duration: the `total=` value in that same profiling line.
    - MCP Inspector tool-call duration: the duration displayed for the complete tool call.
 7. Keep the original log file. Do not delete diagnostics before the Architect has reviewed the results.
 
