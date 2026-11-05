@@ -160,9 +160,9 @@ The index now records the owning absolute project root alongside each file. Rein
 
 Older ContextVault databases did not record which project root owned each relative file path. During schema migration, those legacy rows are retained with an empty root marker, but are excluded from active search results and file/chunk statistics because their owner cannot be inferred safely. Reindex each project to create root-scoped records. Do not delete legacy rows automatically: a database-wide automatic cleanup could remove data belonging to another project. Use **Clear local index** only when the user explicitly intends to reset all locally indexed projects.
 
-## Premium workspace UI review
+## Minimal Linear-style workspace UI review
 
-The redesigned dashboard keeps the existing API and settings behavior while updating the visual shell. Verify:
+The redesigned dashboard follows a restrained Linear/Vercel-inspired visual system. Verify:
 
 1. The dark workspace, glass panels, responsive layout, and Files/Chunks pills render at desktop and mobile widths.
 2. Pressing `/` from outside an input focuses the search field; typing `/` while already editing another input does not steal focus.
@@ -170,6 +170,13 @@ The redesigned dashboard keeps the existing API and settings behavior while upda
 4. Highlighting treats project source as text nodes; source content must never be inserted as untrusted HTML.
 5. Settings open and close, pricing links remain unchanged, license activation still submits, and Copy MCP Configuration still copies the generated JSON.
 6. Project indexing, progress reporting, clear-index confirmation, and live-monitoring status remain functional.
+
+Additional visual constraints:
+- The page canvas is pure black with high-contrast near-white primary text and readable gray secondary text.
+- The only chromatic accent is muted blue, reserved for links and focus states.
+- No CSS gradients, backdrop-filter blur, glow treatments, or decorative box shadows are used.
+- The search area remains in the primary column; Add Project is a separate side panel on desktop and stacks below on narrower screens.
+- Confirm the 390px viewport has no horizontal overflow and that the search input/button wrap without overlapping.
 
 ## 3. Test B — MCP Inspector connection and tool discovery
 
