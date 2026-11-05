@@ -142,6 +142,35 @@ Record which path ran in the final report. A successful fallback handoff is a pa
 5. Stop Ollama through its own tray application in the disposable environment, then run `start-contextvault.bat`. Confirm the launcher starts Ollama and only opens the dashboard after the IPv4 health endpoint responds.
 6. Confirm Ollama startup logs are written to `ollama-serve.stdout.log` and `ollama-serve.stderr.log` under `%LOCALAPPDATA%\ContextVault\logs` when the CLI startup path is used.
 
+## Stale file cleanup after reindex
+
+The index now records the owning absolute project root alongside each file. Reindexing compares the successfully scanned file paths with the records owned by that root and removes paths that disappeared or were renamed. The cleanup runs only after all current files have been embedded and saved; an embedding failure must preserve the last complete project index. File identity is scoped by both root path and relative path, so two different projects may contain the same relative filename without replacing one another.
+
+### Manual regression scenario
+
+1. Create a disposable project and index `src/old-name.ts`.
+2. Confirm a search finds `src/old-name.ts`.
+3. Rename the file to `src/new-name.ts` (or delete it).
+4. Reindex the same project root.
+5. Confirm search results no longer include `src/old-name.ts` and that the new path is searchable.
+6. Index a second disposable project containing the same relative path as a file in the first project. Reindex the first project and confirm the second project's file remains searchable.
+7. Optional failure-safety check: make the embedding request fail during reindexing. Confirm stale-file pruning does not run and the previously completed index remains available.
+
+### Existing database compatibility
+
+Older ContextVault databases did not record which project root owned each relative file path. During schema migration, those legacy rows are retained with an empty root marker, but are excluded from active search results and file/chunk statistics because their owner cannot be inferred safely. Reindex each project to create root-scoped records. Do not delete legacy rows automatically: a database-wide automatic cleanup could remove data belonging to another project. Use **Clear local index** only when the user explicitly intends to reset all locally indexed projects.
+
+## Premium workspace UI review
+
+The redesigned dashboard keeps the existing API and settings behavior while updating the visual shell. Verify:
+
+1. The dark workspace, glass panels, responsive layout, and Files/Chunks pills render at desktop and mobile widths.
+2. Pressing `/` from outside an input focuses the search field; typing `/` while already editing another input does not steal focus.
+3. Search results show the file path, language badge, match score, and syntax-highlighted source.
+4. Highlighting treats project source as text nodes; source content must never be inserted as untrusted HTML.
+5. Settings open and close, pricing links remain unchanged, license activation still submits, and Copy MCP Configuration still copies the generated JSON.
+6. Project indexing, progress reporting, clear-index confirmation, and live-monitoring status remain functional.
+
 ## 3. Test B — MCP Inspector connection and tool discovery
 
 Keep the ContextVault dashboard and Ollama running.
