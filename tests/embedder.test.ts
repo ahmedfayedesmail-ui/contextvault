@@ -12,7 +12,7 @@ import { generateEmbedding, generateEmbeddingBatch } from "../src/indexer/embedd
 const originalOllamaUrl = process.env.OLLAMA_URL;
 
 beforeEach(() => {
-  process.env.OLLAMA_URL = "http://localhost:11434";
+  process.env.OLLAMA_URL = "http://127.0.0.1:11434";
 });
 
 afterEach(() => {
@@ -57,7 +57,7 @@ describe("generateEmbeddingBatch", () => {
     expect(result).toEqual(expectedEmbeddings);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:11434/api/embed",
+      "http://127.0.0.1:11434/api/embed",
       expect.objectContaining({
         method: "POST",
         headers: {
@@ -142,7 +142,7 @@ describe("generateEmbedding", () => {
     expect(result).toEqual(expectedEmbedding);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:11434/api/embed",
+      "http://127.0.0.1:11434/api/embed",
       {
         method: "POST",
         headers: {
