@@ -28,6 +28,7 @@ database.exec(`
   CREATE TABLE IF NOT EXISTS files (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     path TEXT NOT NULL UNIQUE,
+    root_path TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL,
     mtime TEXT NOT NULL,
     size INTEGER NOT NULL CHECK (size >= 0),
@@ -55,6 +56,14 @@ database.exec(`
     value TEXT NOT NULL
   );
 `);
+
+// Older databases did not store the owning project root. Keep those rows intact;
+// new and re-indexed rows receive an explicit root_path and can be pruned safely.
+const fileColumns = database.prepare("PRAGMA table_info(files)").all() as Array<{ name: string }>;
+if (!fileColumns.some((column) => column.name === "root_path")) {
+  database.exec("ALTER TABLE files ADD COLUMN root_path TEXT NOT NULL DEFAULT ''");
+}
+database.exec("CREATE INDEX IF NOT EXISTS idx_files_root_path ON files(root_path)");
 
 database.prepare(`
   INSERT OR IGNORE INTO settings (key, value)
