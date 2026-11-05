@@ -1,6 +1,7 @@
 import { scanProject, chunkFile } from "./fileWatcher";
 import { generateEmbeddingBatch } from "./embedder";
-import { saveIndexedData } from "../storage/vectors";
+import { pruneProjectIndex, saveIndexedData } from "../storage/vectors";
+import path from "node:path";
 import type { ProjectFile } from "../types";
 
 const EMBEDDING_BATCH_SIZE = 16;
@@ -74,9 +75,10 @@ export async function indexProject(
     currentFile: null
   });
 
-  console.info(`[ContextVault] Starting indexing: ${rootPath}`);
+  const normalizedRoot = path.resolve(rootPath);
+  console.info(`[ContextVault] Starting indexing: ${normalizedRoot}`);
 
-  const files = await scanProject(rootPath);
+  const files = await scanProject(normalizedRoot);
   const fileStates: FileEmbeddingState[] = files.map((file) => ({
     file,
     chunks: chunkFile(file),
@@ -129,7 +131,8 @@ export async function indexProject(
       saveIndexedData(
         [state.file],
         state.chunks,
-        state.embeddings
+        state.embeddings,
+        normalizedRoot
       );
 
       completedFiles++;
@@ -202,6 +205,16 @@ export async function indexProject(
   // This also handles the empty-project case and any trailing zero-chunk files.
   persistCompletedFiles();
 
+  // Prune stale paths only after every current file has been embedded and saved.
+  // If scanning or embedding fails, the previous complete project index remains.
+  const pruneResult = pruneProjectIndex(
+    normalizedRoot,
+    files.map((file) => file.path)
+  );
+
+  console.info(
+    `[ContextVault] Stale-file cleanup completed: ${pruneResult.deletedFiles} files, ${pruneResult.deletedChunks} chunks removed.`
+  );
   console.info("[ContextVault] Indexing completed successfully.");
 
   return {
@@ -211,9 +224,10 @@ export async function indexProject(
 }
 
 export async function indexSingleFile(
-  file: ProjectFile
+  file: ProjectFile,
+  rootPath: string
 ): Promise<void> {
   const chunks = chunkFile(file);
   const embeddings = await embedChunksInBatches(chunks);
-  saveIndexedData([file], chunks, embeddings);
+  saveIndexedData([file], chunks, embeddings, path.resolve(rootPath));
 }
