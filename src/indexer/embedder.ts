@@ -61,8 +61,8 @@ function logEmbeddingDiagnostic(
     console.info(line);
   }
 
-  // The Windows desktop launcher runs the app hidden. Persisting diagnostics
-  // makes timing and timeout information available even without a console.
+  // The Windows desktop launcher can hide the server console. Persisting
+  // diagnostics makes timing and timeout information available for support.
   if (process.env.NODE_ENV === "test") {
     return;
   }
@@ -82,12 +82,45 @@ function logEmbeddingDiagnostic(
     });
 }
 
-export async function generateEmbedding(
-  text: string
-): Promise<number[]> {
-  if (!text || !text.trim()) {
+function validateEmbeddingVector(
+  value: unknown,
+  index: number
+): number[] {
+  if (!Array.isArray(value) || value.length === 0) {
     throw new Error(
-      "Cannot generate embedding: input text is empty."
+      `Invalid Ollama response: embedding at index ${index} is missing or empty.`
+    );
+  }
+
+  if (
+    !value.every(
+      (item) => typeof item === "number" && Number.isFinite(item)
+    )
+  ) {
+    throw new Error(
+      `Invalid Ollama response: embedding at index ${index} contains a non-finite value.`
+    );
+  }
+
+  return value as number[];
+}
+
+/**
+ * Generates one embedding vector for each input string with one Ollama API
+ * request. Ollama accepts an array in the /api/embed input field.
+ */
+export async function generateEmbeddingBatch(
+  texts: string[]
+): Promise<number[][]> {
+  if (!Array.isArray(texts) || texts.length === 0) {
+    throw new Error(
+      "Cannot generate embeddings: provide at least one input text."
+    );
+  }
+
+  if (texts.some((text) => typeof text !== "string" || !text.trim())) {
+    throw new Error(
+      "Cannot generate embeddings: every input text must be a non-empty string."
     );
   }
 
@@ -111,7 +144,7 @@ export async function generateEmbedding(
       },
       body: JSON.stringify({
         model: MODEL_NAME,
-        input: text,
+        input: texts,
         keep_alive: keepAlive
       }),
       signal: AbortSignal.timeout(timeoutMs)
@@ -126,7 +159,7 @@ export async function generateEmbedding(
     if (error instanceof Error && error.name === "TimeoutError") {
       logEmbeddingDiagnostic(
         "error",
-        `Ollama embedding timed out after ${elapsedMs}ms (configured timeout: ${timeoutMs}ms, model: ${MODEL_NAME}).`
+        `Ollama embedding batch timed out after ${elapsedMs}ms (items=${texts.length}, configured timeout=${timeoutMs}ms, model=${MODEL_NAME}).`
       );
       throw new Error(
         `Ollama embedding request timed out after ${timeoutMs}ms at ${endpoint}. ` +
@@ -137,7 +170,7 @@ export async function generateEmbedding(
 
     logEmbeddingDiagnostic(
       "error",
-      `Ollama embedding request failed after ${elapsedMs}ms: ${details}`
+      `Ollama embedding batch request failed after ${elapsedMs}ms (items=${texts.length}): ${details}`
     );
     throw new Error(
       `Cannot connect to Ollama at ${endpoint}. ` +
@@ -155,9 +188,12 @@ export async function generateEmbedding(
     const elapsedMs = (performance.now() - startedAt).toFixed(1);
     logEmbeddingDiagnostic(
       "error",
-      `Could not read Ollama response after ${elapsedMs}ms.`
+      `Could not read Ollama embedding response after ${elapsedMs}ms (items=${texts.length}).`
     );
-    throw new Error("Could not read Ollama's embedding response.", { cause: error });
+    throw new Error(
+      "Could not read Ollama's embedding response.",
+      { cause: error }
+    );
   }
 
   const elapsedMs = performance.now() - startedAt;
@@ -165,7 +201,7 @@ export async function generateEmbedding(
   if (!response.ok) {
     logEmbeddingDiagnostic(
       "error",
-      `Ollama embedding failed with HTTP ${response.status} after ${elapsedMs.toFixed(1)}ms.`
+      `Ollama embedding batch failed with HTTP ${response.status} after ${elapsedMs.toFixed(1)}ms (items=${texts.length}).`
     );
     throw new Error(
       `Ollama returned HTTP ${response.status}. ` +
@@ -180,7 +216,7 @@ export async function generateEmbedding(
   } catch (error) {
     logEmbeddingDiagnostic(
       "error",
-      `Ollama returned invalid JSON after ${elapsedMs.toFixed(1)}ms.`
+      `Ollama returned invalid JSON after ${elapsedMs.toFixed(1)}ms (items=${texts.length}).`
     );
     throw new Error(
       `Ollama returned an invalid JSON response: ${responseBody}`,
@@ -188,30 +224,19 @@ export async function generateEmbedding(
     );
   }
 
-  if (
-    !Array.isArray(data.embeddings) ||
-    !Array.isArray(data.embeddings[0])
-  ) {
+  if (!Array.isArray(data.embeddings)) {
     throw new Error(
-      "Invalid Ollama response: expected embeddings as a nested array."
+      "Invalid Ollama response: expected embeddings to be an array."
     );
   }
 
-  const embedding = data.embeddings[0];
-
-  if (
-    embedding.length === 0 ||
-    !embedding.every(
-      (value) =>
-        typeof value === "number" &&
-        Number.isFinite(value)
-    )
-  ) {
+  if (data.embeddings.length !== texts.length) {
     throw new Error(
-      "Ollama returned an invalid or empty embedding vector."
+      `Ollama returned ${data.embeddings.length} embeddings for ${texts.length} input texts.`
     );
   }
 
+  const embeddings = data.embeddings.map(validateEmbeddingVector);
   const apiLoadMs = nanosecondsToMilliseconds(data.load_duration);
   const apiTotalMs = nanosecondsToMilliseconds(data.total_duration);
   const metrics = [
@@ -219,11 +244,22 @@ export async function generateEmbedding(
     apiTotalMs === null ? null : `ollama_total=${apiTotalMs}ms`
   ].filter(Boolean).join(", ");
 
+  const operationLabel = texts.length === 1
+    ? "Embedding completed"
+    : `Embedding batch completed (items=${texts.length})`;
+
   logEmbeddingDiagnostic(
     "info",
-    `Embedding completed in ${elapsedMs.toFixed(1)}ms (model=${MODEL_NAME}${metrics ? `, ${metrics}` : ""}, keep_alive=${keepAlive}).`
+    `${operationLabel} in ${elapsedMs.toFixed(1)}ms (model=${MODEL_NAME}${metrics ? `, ${metrics}` : ""}, keep_alive=${keepAlive}).`
   );
 
+  return embeddings;
+}
+
+export async function generateEmbedding(
+  text: string
+): Promise<number[]> {
+  const [embedding] = await generateEmbeddingBatch([text]);
   return embedding;
 }
 
