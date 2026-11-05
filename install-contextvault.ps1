@@ -414,7 +414,14 @@ function Start-OllamaService {
             Write-Info "An unresponsive Ollama process (PID $ListenerPid) owns port 11434. Restarting that exact Ollama executable..."
             $TaskkillExe = Join-Path $env:SystemRoot 'System32\taskkill.exe'
             & $TaskkillExe /F /PID $ListenerPid | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not stop the unresponsive Ollama process PID $ListenerPid (taskkill exit code $LASTEXITCODE)."
+            }
             Start-Sleep -Seconds 2
+            $RemainingListenerPid = Get-OllamaListenerPid
+            if ($RemainingListenerPid) {
+                throw "Port 11434 is still occupied by PID $RemainingListenerPid after the Ollama restart attempt."
+            }
         }
         else {
             $ListenerName = if ($ListenerPath) { [IO.Path]::GetFileName($ListenerPath) } else { 'unknown process' }
