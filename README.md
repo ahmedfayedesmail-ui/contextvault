@@ -78,8 +78,8 @@ Choose the installation method for your operating system. The native installers 
 
 1. Download the repository using **Code → Download ZIP**, then extract it.
 2. Right-click `install-contextvault.ps1` and choose **Run with PowerShell**.
-3. The installer prepares Node.js 22, installs Ollama (using winget with an official-installer fallback), starts Ollama, downloads `nomic-embed-text`, installs dependencies, and creates a desktop shortcut.
-4. Open ContextVault and visit [http://localhost:3737](http://localhost:3737).
+3. The installer prepares a supported Node.js 22 runtime (using a verified official archive when needed), installs Ollama (using winget with a signed official-installer fallback), starts Ollama, downloads `nomic-embed-text`, and installs dependencies. It displays each stage, retries downloads, shows npm output, and saves a diagnostic log under `%LOCALAPPDATA%\\ContextVault\\logs`.
+4. Open ContextVault and visit [http://localhost:3737](http://localhost:3737). The app warms the Ollama embedding model in the background at startup, so the dashboard can open immediately while the model is prepared for the first search.
 
 ### macOS
 
@@ -129,6 +129,16 @@ Files and folders excluded by the scanner's ignore rules are not indexed.
 - **Internet:** Required for first-time setup and downloading the embedding model.
 
 See the [official Ollama Windows requirements](https://docs.ollama.com/windows) for platform details.
+
+### Embedding performance
+
+ContextVault warms the local Ollama embedding model when the dashboard starts and keeps it loaded for 30 minutes by default. Successful embedding requests log elapsed time and, when available, Ollama's model-load timing.
+
+- `OLLAMA_KEEP_ALIVE` — defaults to `30m`.
+- `OLLAMA_EMBED_TIMEOUT_MS` — defaults to `120000` (120 seconds).
+- `OLLAMA_URL` — defaults to `http://localhost:11434`.
+
+See [README_MCP.md](README_MCP.md#embedding-performance-and-diagnostics) for details.
 
 ## Connect your AI tools with MCP
 
