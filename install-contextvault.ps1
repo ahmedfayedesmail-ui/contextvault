@@ -291,6 +291,12 @@ function Get-OllamaExe {
             return [IO.Path]::GetFullPath($Candidate)
         }
     }
+
+    $OllamaCommand = Get-Command 'ollama.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($OllamaCommand -and $OllamaCommand.Source -and (Test-Path -LiteralPath $OllamaCommand.Source -PathType Leaf)) {
+        return [IO.Path]::GetFullPath($OllamaCommand.Source)
+    }
+
     return $null
 }
 
@@ -302,7 +308,12 @@ function Get-WingetExe {
         (Join-Path $SystemDirectory 'winget.exe')
     )
 
-    foreach ($Candidate in $Candidates) {
+    $WingetCommand = Get-Command 'winget.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($WingetCommand -and $WingetCommand.Source) {
+        $Candidates += [string]$WingetCommand.Source
+    }
+
+    foreach ($Candidate in ($Candidates | Select-Object -Unique)) {
         if ($Candidate -and (Test-Path -LiteralPath $Candidate -PathType Leaf)) {
             return [IO.Path]::GetFullPath($Candidate)
         }
@@ -310,42 +321,34 @@ function Get-WingetExe {
     return $null
 }
 
-function Install-Ollama {
+function Install-OllamaViaWinget {
     $WingetExe = Get-WingetExe
-    if ($WingetExe) {
-        Write-Info 'Installing Ollama with Windows Package Manager...'
-        & $WingetExe install --id Ollama.Ollama -e --silent --accept-package-agreements --accept-source-agreements
-        $WingetExitCode = $LASTEXITCODE
+    if (-not $WingetExe) {
+        Write-Host '[ContextVault] winget.exe was not found.' -ForegroundColor Yellow
+        return $null
+    }
 
-        $InstalledOllamaResults = @(Get-OllamaExe | Select-Object -First 1)
-        if ($InstalledOllamaResults.Count -gt 0) {
-            return [string]$InstalledOllamaResults[0]
+    Write-Info 'Installing Ollama via winget...'
+    & $WingetExe install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements
+    $WingetExitCode = $LASTEXITCODE
+
+    if ($WingetExitCode -ne 0) {
+        Write-Host "[ContextVault] winget installation failed with exit code $WingetExitCode." -ForegroundColor Yellow
+        return $null
+    }
+
+    # Give Windows a short period to expose the installed executable after winget exits.
+    for ($Attempt = 0; $Attempt -lt 15; $Attempt++) {
+        $InstalledOllama = Get-OllamaExe
+        if ($InstalledOllama) {
+            Write-Info 'Ollama installed successfully.'
+            return [string]$InstalledOllama
         }
-
-        if ($WingetExitCode -ne 0) {
-            Write-Host "winget returned exit code $WingetExitCode. Trying the official signed installer..." -ForegroundColor Yellow
-        }
-    }
-    else {
-        Write-Host 'winget.exe was not found. Using the official signed Ollama installer...' -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
     }
 
-    $InstallerPath = Join-Path $env:TEMP 'OllamaSetup.exe'
-    Invoke-DownloadWithRetry -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile $InstallerPath -Description 'Downloading the official Ollama installer'
-
-    $Signature = Get-AuthenticodeSignature -FilePath $InstallerPath
-    if ($Signature.Status -ne 'Valid' -or $Signature.SignerCertificate.Subject -notmatch 'Ollama') {
-        Remove-Item -LiteralPath $InstallerPath -Force -ErrorAction SilentlyContinue
-        throw 'Ollama installer signature is invalid. The downloaded file was rejected.'
-    }
-
-    $Setup = Start-Process -FilePath $InstallerPath -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
-    Remove-Item -LiteralPath $InstallerPath -Force -ErrorAction SilentlyContinue
-    if ($Setup.ExitCode -ne 0) { throw "Ollama setup failed with exit code $($Setup.ExitCode)." }
-
-    $InstalledOllamaResults = @(Get-OllamaExe | Select-Object -First 1)
-    if ($InstalledOllamaResults.Count -eq 0) { throw 'Ollama setup finished, but ollama.exe could not be found.' }
-    return [string]$InstalledOllamaResults[0]
+    Write-Host '[ContextVault] winget completed, but ollama.exe could not be located.' -ForegroundColor Yellow
+    return $null
 }
 
 function Test-OllamaApi {
@@ -398,19 +401,39 @@ try {
         throw "npm-cli.js was not found beside the selected node.exe: $NpmCli"
     }
 
-    Write-Step 'Checking for Ollama and installing it if needed.'
-    Write-Info 'Locating Ollama...'
-    $OllamaExeResults = @(Get-OllamaExe | Select-Object -First 1)
-    if ($OllamaExeResults.Count -eq 0) {
-        $OllamaExeResults = @(Install-Ollama | Select-Object -First 1)
+    Write-Step 'Checking for Ollama.'
+    Write-Info 'Checking for Ollama...'
+    $OllamaExe = Get-OllamaExe
+
+    if ($OllamaExe) {
+        Write-Info 'Ollama found, skipping download.'
     }
-    if ($OllamaExeResults.Count -eq 0) {
-        throw 'Ollama executable could not be resolved after installation.'
+    else {
+        $OllamaExe = Install-OllamaViaWinget
     }
 
-    # Force a single absolute String path so Start-Process never receives an Object[].
-    $OllamaExe = [string]$OllamaExeResults[0]
-    $OllamaExe = [IO.Path]::GetFullPath($OllamaExe)
+    if (-not $OllamaExe) {
+        $OllamaDownloadUrl = 'https://ollama.com/download/windows'
+        Write-Host "[ContextVault] Ollama installation failed. Please install manually from $OllamaDownloadUrl" -ForegroundColor Yellow
+        try {
+            Start-Process -FilePath $OllamaDownloadUrl | Out-Null
+        }
+        catch {
+            Write-Host "[ContextVault] Could not open the browser automatically: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+
+        Write-Host '[ContextVault] Please install Ollama from the opened page, then run install-contextvault.ps1 again.' -ForegroundColor Yellow
+        Write-Host '[ContextVault] The installer is stopping here; no Ollama download timeout will run in the background.' -ForegroundColor Yellow
+
+        if ($script:TranscriptStarted) {
+            Stop-Transcript | Out-Null
+            $script:TranscriptStarted = $false
+        }
+        return
+    }
+
+    $OllamaExe = [IO.Path]::GetFullPath([string]$OllamaExe)
+
     if (-not (Test-Path -LiteralPath $OllamaExe -PathType Leaf)) {
         throw "Ollama executable was not found at $OllamaExe."
     }
