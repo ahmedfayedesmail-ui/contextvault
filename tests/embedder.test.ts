@@ -67,8 +67,10 @@ describe("generateEmbedding", () => {
         },
         body: JSON.stringify({
           model: "nomic-embed-text",
-          input: "ContextVault test"
-        })
+          input: "ContextVault test",
+          keep_alive: "30m"
+        }),
+        signal: expect.any(AbortSignal)
       }
     );
   });
