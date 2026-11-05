@@ -125,7 +125,7 @@ Record which path ran in the final report. A successful fallback handoff is a pa
 **Changes made in this PR:**
 - Use the explicit IPv4 endpoint `http://127.0.0.1:11434/api/tags` for Ollama health and model checks instead of `localhost`.
 - Resolve and launch the installed `ollama.exe` by absolute path and set `OLLAMA_HOST=127.0.0.1:11434` for the launched process.
-- Inspect `netstat -ano` for a listener on port 11434 before starting another copy. If the owner is the same resolved Ollama executable but is unresponsive, terminate only that exact Ollama PID and restart it. Never kill an unrelated PID that owns the port.
+- Inspect `netstat -ano` for a listener on port 11434 before starting another copy. If the owner is the resolved Ollama CLI or its sibling tray-app executable and is unresponsive, terminate only that exact Ollama PID and restart it. Never kill an unrelated PID that owns the port.
 - Wait up to 30 seconds for the CLI endpoint. If it does not respond, try the sibling `ollama app.exe` tray application and wait up to another 30 seconds.
 - If startup still fails, show the user a clear Start Menu instruction and preserve stdout/stderr logs under `%LOCALAPPDATA%\ContextVault\logs`.
 - Apply the same API check and launch behavior in `start-contextvault.ps1`; `start-contextvault.bat` delegates to that PowerShell launcher and sets the same `OLLAMA_HOST`.
