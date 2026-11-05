@@ -118,6 +118,30 @@ Record which path ran in the final report. A successful fallback handoff is a pa
 
 **Validation status:** This is an implementation change, not a verified resolution yet. Re-run Scenario A and Scenario B in a clean disposable environment and keep PR #1 in Draft until both paths and the full installation flow have passed.
 
+### Ollama API startup and loopback checks
+
+**Observed issue:** In the Windows Sandbox run, the installer detected an installed Ollama executable but the local API did not become ready within the previous startup wait. This proves a startup failure in that test environment; it does not, by itself, prove that IPv6 resolution was the root cause.
+
+**Changes made in this PR:**
+- Use the explicit IPv4 endpoint `http://127.0.0.1:11434/api/tags` for Ollama health and model checks instead of `localhost`.
+- Resolve and launch the installed `ollama.exe` by absolute path and set `OLLAMA_HOST=127.0.0.1:11434` for the launched process.
+- Inspect `netstat -ano` for a listener on port 11434 before starting another copy. If the owner is the same resolved Ollama executable but is unresponsive, terminate only that exact Ollama PID and restart it. Never kill an unrelated PID that owns the port.
+- Wait up to 30 seconds for the CLI endpoint. If it does not respond, try the sibling `ollama app.exe` tray application and wait up to another 30 seconds.
+- If startup still fails, show the user a clear Start Menu instruction and preserve stdout/stderr logs under `%LOCALAPPDATA%\ContextVault\logs`.
+- Apply the same API check and launch behavior in `start-contextvault.ps1`; `start-contextvault.bat` delegates to that PowerShell launcher and sets the same `OLLAMA_HOST`.
+- Optional per-user startup registration is opt-in only: run `install-contextvault.ps1 -EnableOllamaStartup`. The default installer does not add Ollama to Windows startup.
+
+**Validation status:** These changes are not yet proven on Windows. The installer and launcher must be re-tested in Sandbox before PR #1 can be considered ready.
+
+### Additional Ollama startup tests
+
+1. In a disposable VM/Sandbox, with Ollama installed but not serving, run the installer and confirm it tries the absolute-path CLI, performs the 30-second IPv4 health wait, then tries the tray app if necessary.
+2. Confirm `http://127.0.0.1:11434/api/tags` returns JSON before the installer downloads/checks the embedding model.
+3. With Ollama already serving, run the installer again and confirm it reuses the responding endpoint rather than starting a second server.
+4. Test port conflict handling with a non-Ollama listener on 11434 only in an isolated environment. Confirm the installer identifies the PID and exits with a clear conflict message without terminating that unrelated process.
+5. Stop Ollama through its own tray application in the disposable environment, then run `start-contextvault.bat`. Confirm the launcher starts Ollama and only opens the dashboard after the IPv4 health endpoint responds.
+6. Confirm Ollama startup logs are written to `ollama-serve.stdout.log` and `ollama-serve.stderr.log` under `%LOCALAPPDATA%\ContextVault\logs` when the CLI startup path is used.
+
 ## 3. Test B — MCP Inspector connection and tool discovery
 
 Keep the ContextVault dashboard and Ollama running.
@@ -311,6 +335,10 @@ Copy this section into the review when all checks have been run:
 - Existing Ollama skip message: PASS / FAIL / N/A
 - Manual fallback browser + clean exit: PASS / FAIL / N/A
 - Ollama model present: PASS / FAIL — notes:
+- IPv4 Ollama health endpoint: PASS / FAIL — notes:
+- Installer starts Ollama (CLI / tray app): PASS / FAIL — notes:
+- `start-contextvault.bat` restarts Ollama when stopped: PASS / FAIL — notes:
+- Port 11434 conflict handling protects unrelated processes: PASS / FAIL — notes:
 - MCP connection: PASS / FAIL — notes:
 - Tool discovery: PASS / FAIL — notes:
 - `index_project`: PASS / FAIL — files: ; chunks: ; notes:
