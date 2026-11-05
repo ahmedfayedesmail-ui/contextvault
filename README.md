@@ -138,7 +138,7 @@ ContextVault warms the local Ollama embedding model when the dashboard or local 
 
 - `OLLAMA_KEEP_ALIVE` — defaults to `30m`.
 - `OLLAMA_EMBED_TIMEOUT_MS` — defaults to `120000` (120 seconds).
-- `OLLAMA_URL` — defaults to `http://localhost:11434`.
+- `OLLAMA_URL` — defaults to `http://127.0.0.1:11434`.
 - `CONTEXTVAULT_LOG_DIR` — optional override for the diagnostic log directory.
 
 See [README_MCP.md](README_MCP.md#embedding-performance-and-diagnostics) for details.
@@ -225,7 +225,7 @@ The default SQLite database is created at `data/contextvault.db`.
 | Setting | Default |
 | --- | --- |
 | `PORT` | `3737` |
-| `OLLAMA_URL` | `http://localhost:11434` |
+| `OLLAMA_URL` | `http://127.0.0.1:11434` |
 | `DATABASE_PATH` | `data/contextvault.db` |
 
 Set `DATABASE_PATH` to use a different local SQLite database file. Keep it consistent between the web application and MCP client when both should use the same index.
