@@ -4,7 +4,7 @@
 **Scope:** Windows 10 22H2 or Windows 11, followed by one MCP indexing/search run and an embedding-latency measurement.  
 **Status:** This is a test plan. The checks below have **not** been run against a clean Windows machine yet.
 
-Run the sections in order in one planned test session. Use a disposable Windows VM or spare test computer. Do not uninstall Node.js or Ollama from a daily-use computer just to create a clean test. Project indexing in this branch sends up to 16 chunks per Ollama embedding request; a large file is split across multiple batches.
+Run the sections in order in one planned test session. Use a disposable Windows VM or spare test computer. Do not uninstall Node.js or Ollama from a daily-use computer just to create a clean test. Project indexing in this branch sends up to 16 chunks per Ollama embedding request. Chunks are pooled across file boundaries where possible, and each file is still persisted atomically after all its chunks are embedded.
 
 ## 1. Before starting
 
