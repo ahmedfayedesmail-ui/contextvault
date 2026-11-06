@@ -23,7 +23,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate metadata, wait for CI, and check tag availability
+      - name: Validate metadata, CI, and existing release
+        id: preflight
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -43,6 +44,39 @@ jobs:
 
           if [[ ! -f .github/releases/v1.3.0.md ]]; then
             echo "::error::Release notes file is missing."
+            exit 1
+          fi
+
+          tag_sha="$(git ls-remote --tags origin refs/tags/v1.3.0 | awk 'NR == 1 { print $1 }')"
+          release_exists=false
+          if gh release view v1.3.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            release_exists=true
+          fi
+
+          if [[ -n "$tag_sha" && "$release_exists" == "true" ]]; then
+            release_json="$(gh release view v1.3.0 --repo "$GITHUB_REPOSITORY" --json url,tagName,targetCommitish,isDraft,isPrerelease,publishedAt)"
+            release_tag="$(jq -r '.tagName' <<< "$release_json")"
+            release_target="$(jq -r '.targetCommitish' <<< "$release_json")"
+            is_draft="$(jq -r '.isDraft' <<< "$release_json")"
+            is_prerelease="$(jq -r '.isPrerelease' <<< "$release_json")"
+
+            if [[ "$release_tag" != "v1.3.0" || "$release_target" != "$tag_sha" || "$is_draft" != "false" || "$is_prerelease" != "false" ]]; then
+              echo "::error::Existing v1.3.0 tag/release does not match the published stable release. Refusing to alter it."
+              exit 1
+            fi
+
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "The stable v1.3.0 release already exists and its tag/release match. No overwrite will be attempted."
+            exit 0
+          fi
+
+          if [[ -n "$tag_sha" && "$tag_sha" != "$GITHUB_SHA" ]]; then
+            echo "::error::Tag v1.3.0 exists at a different commit and no matching release exists. Refusing to retarget it."
+            exit 1
+          fi
+
+          if [[ -z "$tag_sha" && "$release_exists" == "true" ]]; then
+            echo "::error::A v1.3.0 release exists without its expected tag. Manual review is required."
             exit 1
           fi
 
@@ -80,19 +114,11 @@ jobs:
             exit 1
           fi
 
-          if git ls-remote --exit-code --tags origin refs/tags/v1.3.0 >/dev/null 2>&1; then
-            echo "::error::Tag v1.3.0 already exists. Refusing to overwrite or retarget it."
-            exit 1
-          fi
-
-          if gh release view v1.3.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Release v1.3.0 already exists. Refusing to replace it."
-            exit 1
-          fi
-
+          echo "already_published=false" >> "$GITHUB_OUTPUT"
           echo "Release preflight passed for $GITHUB_SHA."
 
       - name: Create the v1.3.0 tag and GitHub Release
+        if: steps.preflight.outputs.already_published != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -105,5 +131,20 @@ jobs:
             --notes-file .github/releases/v1.3.0.md \
             --latest
 
-          gh release view v1.3.0 --repo "$GITHUB_REPOSITORY" \
-            --json url,tagName,targetCommitish,isLatest,publishedAt
+      - name: Verify published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh release view v1.3.0 --repo "$GITHUB_REPOSITORY" --json url,tagName,targetCommitish,isDraft,isPrerelease,publishedAt)"
+          release_tag="$(jq -r '.tagName' <<< "$release_json")"
+          tag_sha="$(git ls-remote --tags origin refs/tags/v1.3.0 | awk 'NR == 1 { print $1 }')"
+          release_target="$(jq -r '.targetCommitish' <<< "$release_json")"
+
+          [[ "$release_tag" == "v1.3.0" ]]
+          [[ -n "$tag_sha" && "$release_target" == "$tag_sha" ]]
+          [[ "$(jq -r '.isDraft' <<< "$release_json")" == "false" ]]
+          [[ "$(jq -r '.isPrerelease' <<< "$release_json")" == "false" ]]
+
+          echo "$release_json"
