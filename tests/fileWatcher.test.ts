@@ -25,6 +25,8 @@ import {
   chunkFile
 } from "../src/indexer/fileWatcher";
 
+import { MAX_FILE_SIZE_BYTES } from "../src/config/ignorePatterns";
+
 import type {
   ProjectFile
 } from "../src/types";
@@ -129,6 +131,44 @@ describe("Project Scanner", () => {
         filePath.includes("node_modules")
       )
     ).toBe(false);
+  });
+
+  it("should ignore structured and generated data files", async () => {
+    const ignoredNames = [
+      "payload.json",
+      "metadata.xml",
+      "events.log",
+      "export.csv",
+      "settings.yaml",
+      "settings.yml"
+    ];
+
+    for (const name of ignoredNames) {
+      await writeFile(path.join(fixtureDirectory, name), "generated data", "utf8");
+    }
+
+    const files = await scanProject(fixtureDirectory);
+    const filePaths = files.map((file) => file.path);
+
+    for (const name of ignoredNames) {
+      expect(filePaths).not.toContain(name);
+    }
+  });
+
+  it("caps indexable files at 500 KiB", async () => {
+    expect(MAX_FILE_SIZE_BYTES).toBe(500 * 1024);
+
+    const boundaryPath = path.join(fixtureDirectory, "src", "boundary.txt");
+    const oversizedPath = path.join(fixtureDirectory, "src", "oversized.txt");
+
+    await writeFile(boundaryPath, "x".repeat(500 * 1024), "utf8");
+    await writeFile(oversizedPath, "x".repeat(500 * 1024 + 1), "utf8");
+
+    const files = await scanProject(fixtureDirectory);
+    const filePaths = files.map((file) => file.path);
+
+    expect(filePaths).toContain(path.join("src", "boundary.txt"));
+    expect(filePaths).not.toContain(path.join("src", "oversized.txt"));
   });
 
   it("should ignore lockfiles, minified assets, source maps, dist, and build", async () => {

@@ -43,7 +43,13 @@ export const IGNORED_EXTENSIONS = new Set([
   ".wasm",
   ".pyc",
   ".pyo",
-  ".map"
+  ".map",
+  ".json",
+  ".xml",
+  ".log",
+  ".csv",
+  ".yaml",
+  ".yml"
 ]);
 
 const IGNORED_FILE_NAMES = new Set([
@@ -58,7 +64,7 @@ const IGNORED_FILE_SUFFIXES = [
   ".min.js"
 ];
 
-export const MAX_FILE_SIZE_BYTES = 1024 * 1024;
+export const MAX_FILE_SIZE_BYTES = 500 * 1024;
 
 export const shouldIgnorePath = (
   entryPath: string,
