@@ -7,7 +7,12 @@ import {
   vi
 } from "vitest";
 
-import { generateEmbedding, generateEmbeddingBatch } from "../src/indexer/embedder";
+import {
+  EmbeddingQueueFullError,
+  generateEmbedding,
+  generateEmbeddingBatch,
+  getEmbeddingQueueStats
+} from "../src/indexer/embedder";
 
 const originalOllamaUrl = process.env.OLLAMA_URL;
 
@@ -123,6 +128,79 @@ describe("generateEmbeddingBatch", () => {
         "Failed to embed chunk from src/broken.ts: Ollama returned HTTP 400. Response: EOF"
       )
     );
+  });
+
+  it("serializes Ollama requests and rejects work beyond ten pending requests", async () => {
+    let activeRequests = 0;
+    let maximumConcurrentRequests = 0;
+    const requestOrder: string[] = [];
+
+    const fetchMock = vi.fn(async (
+      _input: RequestInfo | URL,
+      init?: RequestInit
+    ) => {
+      activeRequests++;
+      maximumConcurrentRequests = Math.max(
+        maximumConcurrentRequests,
+        activeRequests
+      );
+
+      try {
+        await new Promise<void>((resolve) => setTimeout(resolve, 40));
+        const body = JSON.parse(String(init?.body)) as { input: string[] };
+        requestOrder.push(body.input[0] ?? "");
+        return new Response(
+          JSON.stringify({
+            model: "nomic-embed-text",
+            embeddings: body.input.map(() => [0.1, 0.2, 0.3])
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      } finally {
+        activeRequests--;
+      }
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    // One request starts immediately; ten more are accepted into the FIFO.
+    const accepted = Array.from({ length: 11 }, (_, index) =>
+      generateEmbeddingBatch(["queued request " + index], undefined, "search_query")
+    );
+
+    expect(getEmbeddingQueueStats()).toEqual({
+      active: 1,
+      pending: 10,
+      capacity: 10
+    });
+
+    await expect(
+      generateEmbeddingBatch(["overflow request"], undefined, "search_query")
+    ).rejects.toBeInstanceOf(EmbeddingQueueFullError);
+
+    await expect(
+      generateEmbeddingBatch(["second overflow"], undefined, "search_query")
+    ).rejects.toMatchObject({ statusCode: 429 });
+
+    const results = await Promise.all(accepted);
+
+    expect(results).toHaveLength(11);
+    expect(fetchMock).toHaveBeenCalledTimes(11);
+    expect(requestOrder).toEqual(
+      Array.from(
+        { length: 11 },
+        (_, index) => "search_query: queued request " + index
+      )
+    );
+    expect(maximumConcurrentRequests).toBe(1);
+    expect(getEmbeddingQueueStats()).toEqual({
+      active: 0,
+      pending: 0,
+      capacity: 10
+    });
   });
 
   it("should reject an empty batch without calling Ollama", async () => {

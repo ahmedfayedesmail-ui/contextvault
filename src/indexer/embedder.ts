@@ -16,6 +16,98 @@ const DEFAULT_KEEP_ALIVE = "30m";
 
 export type EmbeddingTask = "search_document" | "search_query";
 
+
+export const MAX_PENDING_EMBEDDING_REQUESTS = 10;
+
+export class EmbeddingQueueFullError extends Error {
+  readonly statusCode = 429;
+
+  constructor() {
+    super(
+      "The local embedding queue is full. Retry after an active request completes."
+    );
+    this.name = "EmbeddingQueueFullError";
+  }
+}
+
+interface EmbeddingQueueEntry {
+  run: () => Promise<unknown>;
+  resolve: (value: unknown) => void;
+  reject: (error: unknown) => void;
+}
+
+const pendingEmbeddingQueue: EmbeddingQueueEntry[] = [];
+let embeddingQueueProcessing = false;
+let activeEmbeddingRequest = false;
+
+export interface EmbeddingQueueStats {
+  active: number;
+  pending: number;
+  capacity: number;
+}
+
+export function getEmbeddingQueueStats(): EmbeddingQueueStats {
+  return {
+    active: activeEmbeddingRequest ? 1 : 0,
+    pending: pendingEmbeddingQueue.length,
+    capacity: MAX_PENDING_EMBEDDING_REQUESTS
+  };
+}
+
+function enqueueEmbeddingTask<T>(
+  run: () => Promise<T>
+): Promise<T> {
+  if (pendingEmbeddingQueue.length >= MAX_PENDING_EMBEDDING_REQUESTS) {
+    return Promise.reject(new EmbeddingQueueFullError());
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    pendingEmbeddingQueue.push({
+      run,
+      resolve: (value) => resolve(value as T),
+      reject
+    });
+
+    void drainEmbeddingQueue();
+  });
+}
+
+async function drainEmbeddingQueue(): Promise<void> {
+  if (embeddingQueueProcessing) {
+    return;
+  }
+
+  embeddingQueueProcessing = true;
+
+  try {
+    while (pendingEmbeddingQueue.length > 0) {
+      const entry = pendingEmbeddingQueue.shift();
+
+      if (!entry) {
+        continue;
+      }
+
+      activeEmbeddingRequest = true;
+
+      try {
+        entry.resolve(await entry.run());
+      } catch (error) {
+        entry.reject(error);
+      } finally {
+        activeEmbeddingRequest = false;
+      }
+    }
+  } finally {
+    embeddingQueueProcessing = false;
+
+    // A task may be enqueued as the queue is becoming idle. Re-check after
+    // releasing the processing lock so no accepted request is stranded.
+    if (pendingEmbeddingQueue.length > 0) {
+      void drainEmbeddingQueue();
+    }
+  }
+}
+
 interface EmbeddingBrokerResponse {
   type: "embedding-response";
   requestId: string;
@@ -387,65 +479,67 @@ export async function generateEmbeddingBatch(
     return requestEmbeddingBatchFromParent(texts, filePaths, task);
   }
 
-  const baseUrl = (
-    process.env.OLLAMA_URL ??
-    "http://127.0.0.1:11434"
-  ).replace(/\/+$/, "");
-
-  const endpoint = baseUrl + "/api/embed";
-  const timeoutMs = getEmbeddingTimeoutMs();
-  const keepAlive = process.env.OLLAMA_KEEP_ALIVE?.trim() || DEFAULT_KEEP_ALIVE;
-  const embeddings: Array<number[] | null> = new Array(texts.length).fill(null);
-
-  const embedRange = async (
-    start: number,
-    end: number
-  ): Promise<void> => {
-    const batch = texts
-      .slice(start, end)
-      .map((text) => task + ": " + text);
-
-    try {
-      const batchEmbeddings = await requestEmbeddingBatch(
-        batch,
-        endpoint,
-        timeoutMs,
-        keepAlive
-      );
-
-      for (let index = 0; index < batchEmbeddings.length; index++) {
-        embeddings[start + index] = batchEmbeddings[index];
-      }
-    } catch (error) {
-      if (!isRetryableEofBadRequest(error)) {
-        throw error;
-      }
-
-      if (batch.length === 1) {
-        const filePath = filePaths?.[start] ?? "<non-file input>";
-        logEmbeddingDiagnostic(
-          "error",
-          "Failed to embed chunk from " + filePath + ": " +
-          getErrorMessage(error)
+  return enqueueEmbeddingTask(async () => {
+    const baseUrl = (
+      process.env.OLLAMA_URL ??
+      "http://127.0.0.1:11434"
+    ).replace(/\/+$/, "");
+  
+    const endpoint = baseUrl + "/api/embed";
+    const timeoutMs = getEmbeddingTimeoutMs();
+    const keepAlive = process.env.OLLAMA_KEEP_ALIVE?.trim() || DEFAULT_KEEP_ALIVE;
+    const embeddings: Array<number[] | null> = new Array(texts.length).fill(null);
+  
+    const embedRange = async (
+      start: number,
+      end: number
+    ): Promise<void> => {
+      const batch = texts
+        .slice(start, end)
+        .map((text) => task + ": " + text);
+  
+      try {
+        const batchEmbeddings = await requestEmbeddingBatch(
+          batch,
+          endpoint,
+          timeoutMs,
+          keepAlive
         );
-        return;
+  
+        for (let index = 0; index < batchEmbeddings.length; index++) {
+          embeddings[start + index] = batchEmbeddings[index];
+        }
+      } catch (error) {
+        if (!isRetryableEofBadRequest(error)) {
+          throw error;
+        }
+  
+        if (batch.length === 1) {
+          const filePath = filePaths?.[start] ?? "<non-file input>";
+          logEmbeddingDiagnostic(
+            "error",
+            "Failed to embed chunk from " + filePath + ": " +
+            getErrorMessage(error)
+          );
+          return;
+        }
+  
+        const midpoint = start + Math.floor(batch.length / 2);
+        logEmbeddingDiagnostic(
+          "warn",
+          "Ollama returned HTTP 400 with EOF for a batch of " +
+          batch.length + " chunks; retrying as batches of " +
+          (midpoint - start) + " and " + (end - midpoint) + "."
+        );
+  
+        await embedRange(start, midpoint);
+        await embedRange(midpoint, end);
       }
-
-      const midpoint = start + Math.floor(batch.length / 2);
-      logEmbeddingDiagnostic(
-        "warn",
-        "Ollama returned HTTP 400 with EOF for a batch of " +
-        batch.length + " chunks; retrying as batches of " +
-        (midpoint - start) + " and " + (end - midpoint) + "."
-      );
-
-      await embedRange(start, midpoint);
-      await embedRange(midpoint, end);
-    }
-  };
-
-  await embedRange(0, texts.length);
-  return embeddings;
+    };
+  
+    await embedRange(0, texts.length);
+    return embeddings;
+  });
 }
 
 export async function generateEmbedding(
