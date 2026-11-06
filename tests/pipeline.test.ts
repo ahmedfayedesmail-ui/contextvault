@@ -171,6 +171,21 @@ describe("indexProject stale-file reconciliation", () => {
     expect(Number(staleChunkCountAfter.total)).toBe(0);
   });
 
+  it("rejects Free indexing above 1,000 eligible files at the core pipeline boundary", async () => {
+    for (let index = 0; index < 1_001; index++) {
+      await writeFile(
+        path.join(firstProjectRoot, "src", "free-limit-" + index + ".ts"),
+        "export const limitedFile" + index + " = " + index + ";",
+        "utf8"
+      );
+    }
+
+    await expect(indexProject(firstProjectRoot)).rejects.toThrow(
+      "Free plan supports up to 1,000 files. Upgrade to Pro for unlimited indexing."
+    );
+    expect(generateEmbeddingBatch).not.toHaveBeenCalled();
+  });
+
   it("limits Ollama embedding requests to eight chunks", async () => {
     for (let index = 0; index < 9; index++) {
       await writeFile(

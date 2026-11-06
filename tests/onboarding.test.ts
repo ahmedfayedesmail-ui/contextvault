@@ -231,6 +231,55 @@ describe("ContextVault onboarding", () => {
     expect(savedFile?.content).toBe(source);
   });
 
+  it("rejects Free indexing when a project contains more than 1,000 eligible files", async () => {
+    for (let index = 0; index < 1_001; index++) {
+      await writeFile(
+        path.join(fixtureDirectory, "file-" + index + ".ts"),
+        "export const file" + index + " = " + index + ";",
+        "utf8"
+      );
+    }
+
+    const response = await request(app)
+      .post("/api/index")
+      .send({ rootPath: fixtureDirectory });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe(
+      "Free plan supports up to 1,000 files. Upgrade to Pro for unlimited indexing."
+    );
+    expect(database.prepare("SELECT COUNT(*) AS total FROM files").get())
+      .toMatchObject({ total: 0 });
+  });
+
+  it("blocks search against an existing Free index with more than 1,000 files", async () => {
+    const insertFile = database.prepare(`
+      INSERT INTO files (
+        path, root_path, content, mtime, size, language
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    for (let index = 0; index < 1_001; index++) {
+      insertFile.run(
+        "legacy-" + index + ".ts",
+        path.resolve(fixtureDirectory),
+        "export const legacy" + index + " = true;",
+        "2026-11-06T08:00:00.000Z",
+        32,
+        "typescript"
+      );
+    }
+
+    const response = await request(app)
+      .post("/api/search")
+      .send({ query: "find the entry point" });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe(
+      "Free plan supports up to 1,000 files. Upgrade to Pro for unlimited indexing."
+    );
+  });
+
   it("blocks Free users from indexing or watching a second project", async () => {
     const existingRoot = path.join(fixtureDirectory, "already-indexed");
     await mkdir(existingRoot, { recursive: true });
@@ -263,7 +312,35 @@ describe("ContextVault onboarding", () => {
       .send({ rootPath: fixtureDirectory });
 
     expect(watchResponse.status).toBe(403);
-    expect(watchResponse.body.error).toBe(expectedError);
+    expect(watchResponse.body.error).toBe(
+      "Live Monitoring is a Pro feature."
+    );
+
+    const mcpConfigResponse = await request(app)
+      .get("/api/config/mcp");
+
+    expect(mcpConfigResponse.status).toBe(403);
+    expect(mcpConfigResponse.body.error).toBe(
+      "MCP integration is a Pro feature. Please upgrade to use ContextVault with Cursor or Claude Desktop."
+    );
+  });
+
+  it("allows a verified Pro license to start Live Monitoring", async () => {
+    database.prepare("UPDATE settings SET value = 'Pro' WHERE key = 'license'").run();
+    database.prepare("UPDATE settings SET value = 'true' WHERE key = 'license_verified'").run();
+
+    const watchResponse = await request(app)
+      .post("/api/watch")
+      .send({ rootPath: fixtureDirectory });
+
+    expect(watchResponse.status).toBe(200);
+    expect(watchResponse.body.success).toBe(true);
+
+    const downgradeResponse = await request(app)
+      .put("/api/settings/license")
+      .send({ license: "Free" });
+
+    expect(downgradeResponse.status).toBe(200);
   });
 
   it("allows Free users to reindex their existing project", async () => {

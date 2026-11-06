@@ -116,6 +116,27 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   letter-spacing: -.2px;
 }
 
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 7px;
+  padding: 3px 7px;
+  border: 1px solid var(--cv-border-strong);
+  border-radius: 999px;
+  background: #0a0a0a;
+  color: var(--cv-secondary);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+.plan-badge[data-plan="pro"] {
+  border-color: rgba(255, 184, 92, .38);
+  background: rgba(255, 184, 92, .08);
+  color: #ffd19a;
+}
+
 .brand-caption {
   margin-top: 1px;
   color: var(--cv-muted);
@@ -827,6 +848,88 @@ footer {
 .mcp-instructions code { color: var(--cv-accent); font-family: var(--cv-font-mono); font-size: 10px; }
 .settings-footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--cv-border); color: var(--cv-muted); font-size: 10px; }
 
+.plan-limits-intro {
+  margin: 7px 0 0;
+  color: var(--cv-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.plan-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+  border: 1px solid var(--cv-border);
+  border-radius: 7px;
+}
+
+.plan-table {
+  width: 100%;
+  min-width: 390px;
+  border-collapse: collapse;
+  color: var(--cv-secondary);
+  font-size: 11px;
+}
+
+.plan-table th,
+.plan-table td {
+  padding: 10px 9px;
+  border-bottom: 1px solid var(--cv-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.plan-table thead th {
+  background: #0c0c0c;
+  color: var(--cv-text);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.plan-table tbody th {
+  color: #c8c8c8;
+  font-weight: 550;
+}
+
+.plan-table tr:last-child th,
+.plan-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.plan-table [data-plan-column].is-current {
+  background: rgba(255, 255, 255, .045);
+  color: var(--cv-text);
+  font-weight: 650;
+}
+
+.plan-table [data-plan-column="pro"].is-current {
+  background: rgba(255, 184, 92, .07);
+  color: #ffd19a;
+}
+
+.pro-upsell {
+  margin-top: 13px;
+  padding: 13px;
+  border: 1px solid rgba(255, 184, 92, .25);
+  border-radius: 7px;
+  background: rgba(255, 184, 92, .045);
+}
+
+.pro-upsell p {
+  margin: 0;
+  color: var(--cv-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.pro-upsell strong {
+  color: var(--cv-text);
+}
+
+.pro-upsell .upgrade-button {
+  display: flex;
+  text-align: center;
+}
+
 @media (max-width: 820px) {
   .main-content { margin-top: 46px; }
   .workspace-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
@@ -877,7 +980,10 @@ footer {
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">CV</div>
         <div>
-          <div class="brand-name">ContextVault</div>
+          <div class="brand-name">
+            ContextVault
+            <span id="plan-badge" class="plan-badge" data-plan="free">Free</span>
+          </div>
           <div class="brand-caption">Local developer context</div>
         </div>
       </div>
@@ -1070,6 +1176,34 @@ footer {
           </div>
         </section>
 
+        <section class="settings-section" aria-labelledby="plan-limits-heading">
+          <div class="settings-divider"></div>
+          <h3 id="plan-limits-heading">Plan Limits</h3>
+          <p class="plan-limits-intro">
+            Free is built for evaluating semantic search on one project.
+            Pro removes project and file caps and adds direct AI-agent integration
+            and live file monitoring for day-to-day development.
+          </p>
+
+          <div class="plan-table-wrap">
+            <table class="plan-table">
+              <thead>
+                <tr>
+                  <th scope="col">Capability</th>
+                  <th scope="col" data-plan-column="free">Free</th>
+                  <th scope="col" data-plan-column="pro">Pro ✨</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">Projects</th><td data-plan-column="free">1 project</td><td data-plan-column="pro">Unlimited</td></tr>
+                <tr><th scope="row">Files per project</th><td data-plan-column="free">Up to 1,000</td><td data-plan-column="pro">Unlimited</td></tr>
+                <tr><th scope="row">MCP for Cursor / Claude</th><td data-plan-column="free">Not included</td><td data-plan-column="pro">Full access</td></tr>
+                <tr><th scope="row">Live monitoring</th><td data-plan-column="free">Not included</td><td data-plan-column="pro">Included</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <div id="activate-pro-section">
           <section class="settings-section">
             <h3>Activate Pro</h3>
@@ -1111,10 +1245,22 @@ footer {
             using the Model Context Protocol.
           </p>
 
+          <div id="mcp-pro-upsell" class="pro-upsell">
+            <p><strong>Put your codebase directly in the AI coding workflow.</strong>
+              Pro connects ContextVault to Cursor and Claude Desktop so your agent
+              can retrieve relevant project context without manual copy-and-paste.
+              Live Monitoring keeps the local index updated as files change.
+            </p>
+            <a class="upgrade-button"
+              href="https://witness-engine.lemonsqueezy.com/checkout/buy/2e74fe7c-547a-4483-b09d-5699d6a1b422"
+              target="_blank" rel="noopener noreferrer">Unlock the Pro workflow</a>
+          </div>
+
           <button
             id="copy-mcp-configuration"
             class="copy-mcp-button"
             type="button"
+            hidden
           >
             <span aria-hidden="true">📋</span>
             Copy MCP Configuration
@@ -1127,7 +1273,7 @@ footer {
             aria-live="polite"
           ></p>
 
-          <div class="mcp-instructions">
+          <div id="mcp-instructions" class="mcp-instructions" hidden>
             <strong>How to connect</strong>
             <p>
               Paste the copied JSON into
@@ -1204,6 +1350,10 @@ footer {
     const licenseUpgradePanel = document.getElementById("license-upgrade-panel");
     const activateProSection = document.getElementById("activate-pro-section");
     const proActivated = document.getElementById("pro-activated");
+    const planBadge = document.getElementById("plan-badge");
+    const planColumns = [...document.querySelectorAll("[data-plan-column]")];
+    const mcpProUpsell = document.getElementById("mcp-pro-upsell");
+    const mcpInstructions = document.getElementById("mcp-instructions");
 
     const progressPanel = document.getElementById("index-progress");
     const progressLabel = document.getElementById("index-progress-label");
@@ -1215,6 +1365,7 @@ footer {
 
     let isIndexing = false;
     let isClearingIndex = false;
+    let currentLicense = "Free";
 
     async function readJsonResponse(response, fallbackMessage) {
       let data;
@@ -1244,10 +1395,25 @@ footer {
 
         const isProActivated =
           data.license === "Pro" && data.verified === true;
+        currentLicense = isProActivated ? "Pro" : "Free";
 
         licenseUpgradePanel.hidden = isProActivated;
         activateProSection.hidden = isProActivated;
         proActivated.hidden = !isProActivated;
+        planBadge.textContent = isProActivated ? "Pro ✨" : "Free";
+        planBadge.dataset.plan = isProActivated ? "pro" : "free";
+        planColumns.forEach((column) => {
+          const active = column.dataset.planColumn === currentLicense.toLowerCase();
+          column.classList.toggle("is-current", active);
+          column.setAttribute("aria-current", String(active));
+        });
+        copyMcpButton.hidden = !isProActivated;
+        mcpInstructions.hidden = !isProActivated;
+        mcpProUpsell.hidden = isProActivated;
+        proActivated.textContent = isProActivated
+          ? "Pro ✨ Activated — unlimited projects and files, MCP, and Live Monitoring are enabled."
+          : "Pro Activated ✓";
+
         licenseStatus.className = "settings-status";
         licenseStatus.textContent = "";
       } catch (error) {
@@ -1258,6 +1424,8 @@ footer {
             : "Unable to load license settings.";
       }
     }
+
+    void loadLicenseSettings();
 
     settingsButton.addEventListener("click", () => {
       settingsDialog.showModal();
@@ -1486,6 +1654,8 @@ footer {
       progressDetail.textContent = "";
 
       try {
+        await loadLicenseSettings();
+
         // The POST responds with HTTP 202 and a job ID without waiting
         // for every file to be embedded.
         const startResponse = await fetch("/api/index", {
@@ -1511,6 +1681,14 @@ footer {
           "Indexing started. Progress will update automatically...";
 
         const indexData = await waitForIndexJob(jobId);
+
+        if (currentLicense !== "Pro") {
+          onboardingStatus.className = "onboarding-status success";
+          onboardingStatus.textContent =
+            `Project ready. Indexed ${indexData.filesCount} files and ${indexData.chunksCount} chunks. Upgrade to Pro for Live Monitoring.`;
+          await refreshStats();
+          return;
+        }
 
         onboardingStatus.textContent =
           `Indexed ${indexData.filesCount} files and ${indexData.chunksCount} chunks. Starting live monitoring...`;

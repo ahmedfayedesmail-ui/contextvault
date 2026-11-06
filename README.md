@@ -46,8 +46,8 @@ Instead of relying only on filenames or exact keyword matches, you can ask quest
 | **Semantic code search** | Finds relevant code using natural-language queries. |
 | **Local embeddings** | Uses Ollama and the `nomic-embed-text` model for embedding generation. |
 | **Persistent index** | Stores indexed project context in a local SQLite database. |
-| **Live monitoring** | Watches an indexed project and adds new or changed files. |
-| **MCP integration** | Exposes `search_context` and `index_project` to compatible AI clients. |
+| **Live monitoring (Pro)** | Watches an indexed project and adds new or changed files. |
+| **MCP integration (Pro)** | Exposes `search_context` and `index_project` to compatible AI clients. |
 | **Cross-platform setup** | Includes native installers for Windows, macOS, and Linux, plus Docker. |
 
 ## How it works
@@ -119,7 +119,7 @@ Then open [http://localhost:3737](http://localhost:3737). Docker Compose stores 
 2. Enter the full path to a local project folder in **Get started with ContextVault**.
 3. Select **Index Project** and let the indexing job finish.
 4. Ask a natural-language question in the search box.
-5. Live monitoring adds new and changed files to the index automatically.
+5. On Pro, Live Monitoring adds new and changed files to the index automatically.
 
 Files and folders excluded by the scanner's ignore rules are not indexed.
 
@@ -255,21 +255,23 @@ Set `DATABASE_PATH` to use a different local SQLite database file. Keep it consi
 
 ## Free and Pro plans
 
-ContextVault Free and Pro share the same core search, indexing, MCP, and live-monitoring tools. The enforced difference is the number of indexed project roots.
+ContextVault Free is designed to evaluate semantic search on one project. Pro is for developers who want ContextVault inside their everyday AI coding workflow and need the index to grow with their codebase.
 
 | Capability | Free | Pro |
 | --- | --- | --- |
-| Local project indexing | One indexed project at a time | Unlimited project roots (no plan-based cap) |
+| Indexed project roots | 1 project at a time | Unlimited projects |
+| Eligible files per project | Up to 1,000 | Unlimited |
 | Dashboard semantic search | Included | Included |
 | Local Ollama embeddings and SQLite storage | Included | Included |
-| MCP tools (`index_project`, `search_context`) | Available; indexing follows the one-project limit | Available; no project-count cap |
-| Live file monitoring | Available (one active watcher per app process) | Available (one active watcher per app process) |
-| Project-limit enforcement | A second project root is rejected with HTTP 403 or an MCP tool error | No plan-based project-count limit |
+| MCP for Cursor and Claude Desktop | Not included | Full access to `index_project` and `search_context` |
+| Live file monitoring | Not included | Included |
 | License activation | Not required | Verified Lemon Squeezy license key |
 
-The Free limit is based on distinct project roots already represented in the local indexed-file database. Re-indexing the same root is allowed. To switch the Free index to another project, use **Clear Index** first; this removes the current indexed files and chunks.
+The 1,000-file boundary counts eligible files discovered by the ContextVault scanner after its normal ignore and file-size rules. Re-indexing the same Free project is allowed; a second project root is not.
 
-The project limit is enforced by the HTTP indexing route, the live-watcher route, and the MCP `index_project` tool. A verified Pro license bypasses the project-count check.
+### Why Pro?
+
+Pro connects your indexed codebase to Cursor and Claude Desktop through MCP, so your AI coding agent can retrieve relevant implementation context directly instead of depending on manual copy-and-paste. Live Monitoring keeps the local index current as files are added or changed, while unlimited projects and files remove the Free plan size boundary.
 
 ### Pro pricing
 
@@ -278,7 +280,7 @@ The project limit is enforced by the HTTP indexing route, the live-watcher route
 | Monthly | **$9 / month** |
 | Yearly | **$79 / year** |
 
-To activate the Pro status, open **Settings → Upgrade to Pro**, complete checkout, then enter the license key in **Settings → Activate Pro**.
+To activate Pro, open **Settings → Upgrade to Pro**, complete checkout, then enter the license key in **Settings → Activate Pro**.
 
 [**Choose a Pro plan**](https://witness-engine.lemonsqueezy.com/checkout/buy/2e74fe7c-547a-4483-b09d-5699d6a1b422)
 

@@ -21,6 +21,7 @@ import {
 
 import {
   scanProject,
+  countProjectFiles,
   chunkFile
 } from "../src/indexer/fileWatcher";
 
@@ -107,6 +108,11 @@ describe("Project Scanner", () => {
     expect(filePaths).toContain(
       "README.md"
     );
+  });
+
+  it("counts eligible files with the same exclusions and can stop early", async () => {
+    expect(await countProjectFiles(fixtureDirectory)).toBe(2);
+    expect(await countProjectFiles(fixtureDirectory, 1)).toBe(1);
   });
 
   it("should ignore node_modules directories", async () => {
