@@ -10,7 +10,6 @@ import { createServer, type Server } from "node:http";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { performance } from "node:perf_hooks";
 import request from "supertest";
 import type { Express } from "express";
 import type { DatabaseSync } from "node:sqlite";
@@ -20,7 +19,8 @@ let database: DatabaseSync;
 let ollamaServer: Server;
 let fixtureDirectory: string;
 let databaseDirectory: string;
-let embeddingRequestStarted: Promise<void>;
+let embeddingRequestStarted: Promise<void> = Promise.resolve();
+let embeddingRequestCompleted = false;
 let resolveEmbeddingRequestStarted: (() => void) | undefined;
 let originalDatabasePath: string | undefined;
 let originalOllamaUrl: string | undefined;
@@ -94,6 +94,7 @@ beforeAll(async () => {
     await new Promise<void>((resolve) => {
       setTimeout(resolve, embeddingDelayMs);
     });
+    embeddingRequestCompleted = true;
 
     const inputs = Array.isArray(body.input) ? body.input : [];
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -170,22 +171,19 @@ describe("indexing worker thread", () => {
 
     await embeddingRequestStarted;
 
-    const healthStartedAt = performance.now();
     const healthResponse = await request(app)
       .get("/health")
       .expect(200);
-    const healthDurationMs = performance.now() - healthStartedAt;
 
     expect(healthResponse.body.status).toBe("ok");
-    expect(healthDurationMs).toBeLessThan(200);
+    expect(embeddingRequestCompleted).toBe(false);
 
     const progressResponse = await request(app)
       .get("/api/index/" + jobId)
       .expect(200);
     expect(progressResponse.body.job.status).toBe("running");
-    expect(["scanning", "embedding"]).toContain(
-      progressResponse.body.job.stage
-    );
+    expect(progressResponse.body.job.stage).toBe("embedding");
+    expect(progressResponse.body.job.completedChunks).toBe(0);
 
     const job = await waitForJob(jobId);
     expect(job.status).toBe("completed");
