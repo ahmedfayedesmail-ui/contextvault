@@ -119,7 +119,7 @@ describe("ContextVault settings", () => {
     expect(server.command).toBe(process.execPath);
     expect(server.env.DATABASE_PATH).toBe(resolvedDatabasePath);
     expect(server.env.OLLAMA_URL).toBe(
-      process.env.OLLAMA_URL ?? "http://localhost:11434"
+      process.env.OLLAMA_URL ?? "http://127.0.0.1:11434"
     );
     expect(server.env.NODE_OPTIONS).toContain(
       "--experimental-sqlite"
