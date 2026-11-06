@@ -118,12 +118,14 @@ describe("indexProject stale-file reconciliation", () => {
       | undefined;
 
     expect(staleBeforeReindex).toBeDefined();
+    const staleFileId = Number(staleBeforeReindex?.id ?? -1);
+    expect(staleFileId).toBeGreaterThan(0);
 
     const staleChunkCountBefore = database.prepare(`
       SELECT COUNT(*) AS total
       FROM chunks
       WHERE file_id = ?
-    `).get(staleBeforeReindex?.id) as { total: number | bigint };
+    `).get(staleFileId) as { total: number | bigint };
 
     expect(Number(staleChunkCountBefore.total)).toBe(1);
 
@@ -158,7 +160,7 @@ describe("indexProject stale-file reconciliation", () => {
       SELECT COUNT(*) AS total
       FROM chunks
       WHERE file_id = ?
-    `).get(staleBeforeReindex?.id) as { total: number | bigint };
+    `).get(staleFileId) as { total: number | bigint };
 
     expect(Number(staleChunkCountAfter.total)).toBe(0);
   });
