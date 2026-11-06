@@ -1,5 +1,35 @@
 # Changelog
 
+All notable ContextVault changes are documented here by release or development session.
+
+## v1.2.0 — 2026-11-06
+
+### Added
+- Rebuilt the dashboard with a restrained, high-contrast Linear/Vercel-inspired workspace, responsive project panel, compact index statistics, and focused semantic search.
+- Added project-root ownership to indexed file records and project-scoped file identity using `(root_path, path)`.
+- Added stale-file reconciliation after a successful project indexing pass, preserving the last completed index if embedding fails.
+- Added Ollama embedding batching (up to 16 chunks per request), background model warm-up, a 30-minute default keep-alive, configurable request timeout, and persistent embedding diagnostics.
+- Added separate embedding, vector-search, and total handler timing diagnostics for HTTP and MCP search.
+- Hardened Windows installation and launch flows with staged progress, managed Node.js runtime reuse, winget-first Ollama installation with a manual fallback, IPv4 loopback checks, bounded Ollama startup recovery, and safer port-owner handling.
+
+### Verified in Windows Sandbox
+- ContextVault dashboard installed and launched successfully.
+- MCP Inspector connected and discovered both `index_project` and `search_context`.
+- `index_project` completed successfully for the disposable SmokeTest project: 1 file and 1 chunk indexed.
+- `search_context` returned the expected `src/billing.ts` source containing `calculateMonthlyRevenue`.
+- One MCP Inspector search call was observed at **229 ms end-to-end** in this environment. This is a single observed call, not a controlled benchmark or a universal latency guarantee.
+
+### Validation still pending
+- The detailed embedding warm-up, model-load, vector-search, and repeated-search profiling session was deferred because the test laptop became overloaded and network connectivity was unstable.
+- The stale-file rename/delete regression scenarios have not yet been run manually.
+- Clean-machine winget and manual-fallback scenarios have not both been completed.
+- The current CI check history on the PR contains failed and cancelled jobs. No new tests or CI runs were initiated for this release decision.
+
+### Release note on performance claims
+The observed 229 ms MCP call is recorded as a single environment-specific measurement. It must not be described as "100x faster" or as a benchmark until comparable baseline and post-change measurements are collected under controlled conditions.
+
+---
+
 All notable ContextVault changes are documented here by development session.
 
 ## Session 12 — Lemon Squeezy Licensing & Pricing
