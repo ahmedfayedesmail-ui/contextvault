@@ -100,6 +100,26 @@ describe('cross-platform distribution files', () => {
     expect(linuxInstaller).toContain('https://ollama.com/install.sh');
   });
 
+  it('uses a clear and non-destructive confirmation before clearing the local index', () => {
+    const dashboard = readFileSync(path.join(projectRoot, 'public', 'index.html'), 'utf8');
+
+    expect(dashboard).toContain(
+      'This will clear your local ContextVault index (files and embeddings) to free up space for another project. Your actual source code files will NOT be deleted. Continue?'
+    );
+    expect(dashboard).not.toContain(
+      'This permanently deletes all indexed projects, files, chunks, and embeddings'
+    );
+  });
+
+  it('documents the Cursor graphical MCP setup', () => {
+    const readme = readFileSync(path.join(projectRoot, 'README.md'), 'utf8');
+
+    expect(readme).toContain('Settings → Features → MCP');
+    expect(readme).toContain('Customize → MCPs');
+    expect(readme).toContain('index_project');
+    expect(readme).toContain('search_context');
+  });
+
   it('provides Docker with the local Ollama runtime and persistent volumes', () => {
     const dockerfile = readFileSync(path.join(projectRoot, 'Dockerfile'), 'utf8');
     const compose = readFileSync(path.join(projectRoot, 'docker-compose.yml'), 'utf8');
