@@ -86,7 +86,7 @@ describe("generateEmbeddingBatch", () => {
         input: string[];
       };
 
-      if (body.input.includes("bad chunk")) {
+      if (body.input.some((text) => text.includes("bad chunk"))) {
         return new Response("EOF", { status: 400 });
       }
 
