@@ -66,10 +66,59 @@ describe("generateEmbeddingBatch", () => {
         body: JSON.stringify({
           model: "nomic-embed-text",
           input: ["first code chunk", "second code chunk"],
-          keep_alive: "30m"
+          keep_alive: "30m",
+          truncate: true
         }),
         signal: expect.any(AbortSignal)
       })
+    );
+  });
+
+  it("should split HTTP 400 EOF batches and skip only the failing chunk", async () => {
+    const fetchMock = vi.fn(async (
+      _input: RequestInfo | URL,
+      init?: RequestInit
+    ) => {
+      const body = JSON.parse(String(init?.body)) as {
+        input: string[];
+      };
+
+      if (body.input.includes("bad chunk")) {
+        return new Response("EOF", { status: 400 });
+      }
+
+      return new Response(
+        JSON.stringify({
+          model: "nomic-embed-text",
+          embeddings: body.input.map((_, index) => [index + 1, 0.5])
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateEmbeddingBatch(
+      ["good before", "bad chunk", "good after"],
+      ["src/before.ts", "src/broken.ts", "src/after.ts"]
+    );
+
+    expect(result).toEqual([
+      [1, 0.5],
+      null,
+      [1, 0.5]
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Failed to embed chunk from src/broken.ts: Ollama returned HTTP 400. Response: EOF"
+      )
     );
   });
 
@@ -143,7 +192,7 @@ describe("generateEmbedding", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "http://127.0.0.1:11434/api/embed",
-      {
+      expect.objectContaining({
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -151,10 +200,11 @@ describe("generateEmbedding", () => {
         body: JSON.stringify({
           model: "nomic-embed-text",
           input: ["ContextVault test"],
-          keep_alive: "30m"
+          keep_alive: "30m",
+          truncate: true
         }),
         signal: expect.any(AbortSignal)
-      }
+      })
     );
   });
 
