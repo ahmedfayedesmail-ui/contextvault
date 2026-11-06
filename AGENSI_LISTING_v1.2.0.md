@@ -1,6 +1,6 @@
-# Agensi Listing Draft — ContextVault v1.2.0
+# Agensi Listing — ContextVault v1.2.0
 
-**Status:** Copy draft for review only. Do not publish this version until PR #1 is reviewed and merged, the v1.2.0 package has been uploaded to Agensi, and Agensi's required security review has completed.
+**Release:** v1.2.0. PR #1 is being finalized for the public main branch. Agensi publication and security review remain a separate marketplace step.
 
 ## Listing fields
 
