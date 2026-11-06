@@ -253,7 +253,7 @@ The license activation endpoint is `POST /api/license/activate`.
 
 ## License
 
-License terms have not been published in the repository. No open-source license is implied until a license file is added.
+ContextVault is licensed under the [Functional Source License, Version 1.1, MIT Future License (FSL-1.1-MIT)](LICENSE). This is a Fair Source license, not an OSI-approved open-source license while its competing-use restriction applies. It permits internal use, but restricts offering ContextVault or substantially similar functionality as a competing commercial product or service. Each version receives a future MIT license grant effective on its second anniversary.
 
 ---
 
