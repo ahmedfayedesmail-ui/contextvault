@@ -106,6 +106,9 @@ describe("ContextVault MCP server", () => {
         "typescript"
       );
 
+      const expectedProMessage =
+        "MCP integration is a Pro feature. Please upgrade to use ContextVault with Cursor or Claude Desktop.";
+
       const blockedIndex = await client.callTool({
         name: "index_project",
         arguments: {
@@ -114,9 +117,17 @@ describe("ContextVault MCP server", () => {
       });
 
       expect(blockedIndex.isError).toBe(true);
-      expect(JSON.stringify(blockedIndex.content)).toContain(
-        "Free plan is limited to one project. Please upgrade to Pro or clear your current index."
-      );
+      expect(JSON.stringify(blockedIndex.content)).toContain(expectedProMessage);
+
+      const blockedSearch = await client.callTool({
+        name: "search_context",
+        arguments: {
+          query: "find the project entry point"
+        }
+      });
+
+      expect(blockedSearch.isError).toBe(true);
+      expect(JSON.stringify(blockedSearch.content)).toContain(expectedProMessage);
     } finally {
       await client.close();
     }

@@ -1,8 +1,9 @@
-import { scanProject, chunkFile } from "./fileWatcher";
+import { scanProject, chunkFile, countProjectFiles } from "./fileWatcher";
 import { generateEmbeddingBatch } from "./embedder";
 import { pruneProjectIndex, saveIndexedData } from "../storage/vectors";
 import path from "node:path";
 import type { ProjectFile } from "../types";
+import { enforceFreeFileLimit } from "../billing/entitlements";
 
 const EMBEDDING_BATCH_SIZE = 8;
 
@@ -103,7 +104,14 @@ export async function indexProject(
   const normalizedRoot = path.resolve(rootPath);
   console.info("[ContextVault] Starting indexing: " + normalizedRoot);
 
+  const eligibleFileCount = await countProjectFiles(normalizedRoot, 1_001);
+  enforceFreeFileLimit(eligibleFileCount);
+
   const files = await scanProject(normalizedRoot);
+  // Re-check the materialized scan result to close the race between counting
+  // directory entries and reading file contents.
+  enforceFreeFileLimit(files.length);
+
   const fileStates: FileEmbeddingState[] = files.map((file) => ({
     file,
     chunks: chunkFile(file),

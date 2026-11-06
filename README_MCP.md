@@ -4,6 +4,8 @@ For the planned fresh-install, MCP Inspector, indexing, search, and embedding-la
 
 ContextVault gives a compatible local AI coding client access to a semantic index of a project on the same computer. The application indexes selected project files, generates embeddings with local Ollama, and stores the index in local SQLite. Its MCP server exposes two tools: `index_project` and `search_context`.
 
+**Pro license required:** Both MCP tools and Live Monitoring require a verified Pro license. Free users can continue using dashboard semantic search on one project with up to 1,000 eligible files.
+
 ## Important: the application, the local MCP server, and the Agensi skill are separate
 
 There are three distinct pieces:
@@ -73,7 +75,7 @@ If the desktop shortcut already exists, double-click **ContextVault** to start t
 3. Select **Index Project**.
 4. Wait for indexing to complete. The dashboard reports the files and chunks processed.
 5. Ask a natural-language question in the search box and select **Search**.
-6. The dashboard starts live monitoring for new and changed files after indexing while the application remains running.
+6. Pro users can use Live Monitoring to watch for new and changed files after indexing while the application remains running. Live Monitoring is not available on Free.
 
 Files excluded by the scanner's ignore rules are not indexed. Do not index repositories or folders without authorization.
 
@@ -81,13 +83,14 @@ Files excluded by the scanner's ignore rules are not indexed. Do not index repos
 
 Do this on the same computer where ContextVault is installed.
 
-1. Start ContextVault and open [http://localhost:3737](http://localhost:3737).
-2. Open **Settings**.
-3. Under **AI Integrations**, select **Copy MCP Configuration**.
-4. Open the MCP configuration for your chosen client.
-5. Merge the generated `contextvault` entry into the existing MCP server configuration. **Do not replace the whole file or remove other MCP servers.**
-6. Save the configuration and fully restart the desktop client.
-7. Confirm that the client lists both `index_project` and `search_context` as available tools.
+1. Activate a verified ContextVault Pro license in **Settings → Activate Pro**.
+2. Start ContextVault and open [http://localhost:3737](http://localhost:3737).
+3. Open **Settings**.
+4. Under **AI Integrations**, select **Copy MCP Configuration**.
+5. Open the MCP configuration for your chosen client.
+6. Merge the generated `contextvault` entry into the existing MCP server configuration. **Do not replace the whole file or remove other MCP servers.**
+7. Save the configuration and fully restart the desktop client.
+8. Confirm that the client lists both `index_project` and `search_context` as available tools.
 
 ContextVault generates machine-specific settings, including the actual Node.js executable, MCP entry point, SQLite database path, Ollama URL, and required runtime options. Use the generated JSON; do not guess or manually invent these values.
 

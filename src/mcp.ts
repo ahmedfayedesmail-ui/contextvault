@@ -10,6 +10,7 @@ import { indexProject } from "./indexer/pipeline";
 import path from "node:path";
 
 import { getLicense, hasIndexedProjectOtherThan } from "./storage/db";
+import { MCP_PRO_ONLY_MESSAGE } from "./billing/entitlements";
 import { searchVectors } from "./storage/vectors";
 
 const SERVER_NAME = "contextvault";
@@ -40,6 +41,18 @@ export function createContextVaultMcpServer(): McpServer {
       }
     },
     async ({ query, limit, filter }) => {
+      if (getLicense() !== "Pro") {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text: MCP_PRO_ONLY_MESSAGE
+            }
+          ]
+        };
+      }
+
       const searchStartedAt = performance.now();
 
       try {
@@ -107,6 +120,18 @@ export function createContextVaultMcpServer(): McpServer {
       }
     },
     async ({ rootPath }) => {
+      if (getLicense() !== "Pro") {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text: MCP_PRO_ONLY_MESSAGE
+            }
+          ]
+        };
+      }
+
       const normalizedRoot = path.resolve(rootPath);
 
       if (

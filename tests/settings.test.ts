@@ -106,7 +106,10 @@ describe("ContextVault settings", () => {
     expect(response.status).toBe(400);
   });
 
-  it("returns the machine-specific MCP configuration", async () => {
+  it("returns the machine-specific MCP configuration for a verified Pro license", async () => {
+    database.prepare("UPDATE settings SET value = 'Pro' WHERE key = 'license'").run();
+    database.prepare("UPDATE settings SET value = 'true' WHERE key = 'license_verified'").run();
+
     const response = await request(app)
       .get("/api/config/mcp");
 

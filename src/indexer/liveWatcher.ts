@@ -2,12 +2,18 @@ import type { FSWatcher } from "chokidar";
 
 import { watchProject } from "./fileWatcher";
 import { indexSingleFile } from "./pipeline";
+import {
+  LIVE_WATCH_PRO_ONLY_MESSAGE,
+  requireProFeature
+} from "../billing/entitlements";
 
 let liveWatcher: FSWatcher | null = null;
 let indexingQueue: Promise<void> = Promise.resolve();
 let stopPromise: Promise<void> | null = null;
 
 export function startLiveWatcher(rootPath: string): void {
+  requireProFeature(LIVE_WATCH_PRO_ONLY_MESSAGE);
+
   if (liveWatcher || stopPromise) {
     console.info("[Live] A project watcher is already active or stopping.");
     return;

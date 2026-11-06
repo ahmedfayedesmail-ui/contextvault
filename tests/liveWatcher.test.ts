@@ -177,6 +177,16 @@ describe("GET /api/stats", () => {
   });
 });
 
+describe("Live Monitoring entitlement", () => {
+  it("refuses to start for Free licenses before creating a filesystem watcher", async () => {
+    const { startLiveWatcher } = await import("../src/indexer/liveWatcher");
+
+    expect(() => startLiveWatcher(process.cwd())).toThrow(
+      "Live Monitoring is a Pro feature."
+    );
+  });
+});
+
 describe("indexSingleFile", () => {
   it("saves a file, its chunks, and generated embeddings to the in-memory database", async () => {
     const content = "export function greet() { return 'hello'; }";

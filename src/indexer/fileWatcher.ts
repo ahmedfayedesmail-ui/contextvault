@@ -177,6 +177,51 @@ export async function scanProject(
   return discoveredFiles;
 }
 
+export async function countProjectFiles(
+  rootPath: string,
+  stopAfter: number = Number.POSITIVE_INFINITY
+): Promise<number> {
+  if (
+    stopAfter !== Number.POSITIVE_INFINITY &&
+    (!Number.isInteger(stopAfter) || stopAfter < 1)
+  ) {
+    throw new Error("countProjectFiles stopAfter must be a positive integer.");
+  }
+
+  const normalizedRoot = path.resolve(path.normalize(rootPath));
+  const rootStats = await stat(normalizedRoot);
+
+  if (!rootStats.isDirectory()) {
+    throw new Error(`Project root is not a directory: ${normalizedRoot}`);
+  }
+
+  let count = 0;
+
+  async function walkDirectory(currentDirectory: string): Promise<void> {
+    if (count >= stopAfter) return;
+    const entries = await readdir(currentDirectory, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (count >= stopAfter) return;
+      const fullPath = path.join(currentDirectory, entry.name);
+      if (entry.isSymbolicLink()) continue;
+
+      if (entry.isDirectory()) {
+        if (shouldIgnorePath(entry.name, true)) continue;
+        await walkDirectory(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile() || shouldIgnorePath(entry.name)) continue;
+      const fileStats = await stat(fullPath);
+      if (fileStats.isFile() && fileStats.size <= MAX_FILE_SIZE_BYTES) count++;
+    }
+  }
+
+  await walkDirectory(normalizedRoot);
+  return count;
+}
+
 interface TextSegment {
   content: string;
   startOffset: number;

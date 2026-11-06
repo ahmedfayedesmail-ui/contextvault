@@ -12,7 +12,7 @@ import { performance } from "node:perf_hooks";
 
 import { z } from "zod";
 
-import { scanProject } from "../indexer/fileWatcher";
+import { countProjectFiles, scanProject } from "../indexer/fileWatcher";
 
 import { runIndexInWorker } from "../indexer/workerManager";
 
@@ -35,6 +35,12 @@ import {
 } from "../storage/db";
 
 import type { ScannedFile } from "../types";
+import {
+  FREE_FILE_LIMIT_MESSAGE,
+  FREE_MAX_FILES,
+  LIVE_WATCH_PRO_ONLY_MESSAGE,
+  MCP_PRO_ONLY_MESSAGE
+} from "../billing/entitlements";
 
 export const apiRouter = Router();
 
@@ -114,6 +120,12 @@ apiRouter.get("/stats", (_req, res) => {
 // GET /api/config/mcp
 
 apiRouter.get("/config/mcp", (_req, res) => {
+  if (getLicense() !== "Pro") {
+    return res.status(403).json({
+      error: MCP_PRO_ONLY_MESSAGE
+    });
+  }
+
   try {
     if (resolvedDatabasePath === ":memory:") {
       return res.status(409).json({
@@ -168,7 +180,7 @@ apiRouter.get("/settings/license", (_req, res) => {
 
 // PUT /api/settings/license
 
-apiRouter.put("/settings/license", (req, res) => {
+apiRouter.put("/settings/license", async (req, res) => {
   const validation = licenseRequestSchema.safeParse(req.body);
 
   if (!validation.success) {
@@ -186,6 +198,7 @@ apiRouter.put("/settings/license", (req, res) => {
 
   try {
     const license = setLicense("Free");
+    await stopLiveWatcher();
 
     return res.json({
       success: true,
@@ -422,15 +435,6 @@ apiRouter.post("/index", async (req, res) => {
     });
   }
 
-  const embeddingQueue = getEmbeddingQueueStats();
-  if (embeddingQueue.pending >= embeddingQueue.capacity) {
-    res.setHeader("Retry-After", "1");
-    return res.status(429).json({
-      error: "Too many embedding requests",
-      message: "The local embedding queue is full. Retry shortly."
-    });
-  }
-
   if (activeIndexJobId) {
     const activeJob = indexJobs.get(activeIndexJobId);
 
@@ -445,6 +449,24 @@ apiRouter.post("/index", async (req, res) => {
     }
 
     activeIndexJobId = null;
+  }
+
+  // Count eligible files without loading their contents. The pipeline repeats
+  // this check too, protecting non-HTTP entry points.
+  if (getLicense() !== "Pro") {
+    const eligibleFileCount = await countProjectFiles(rootPath, FREE_MAX_FILES + 1);
+    if (eligibleFileCount > FREE_MAX_FILES) {
+      return res.status(403).json({ error: FREE_FILE_LIMIT_MESSAGE });
+    }
+  }
+
+  const embeddingQueue = getEmbeddingQueueStats();
+  if (embeddingQueue.pending >= embeddingQueue.capacity) {
+    res.setHeader("Retry-After", "1");
+    return res.status(429).json({
+      error: "Too many embedding requests",
+      message: "The local embedding queue is full. Retry shortly."
+    });
   }
 
   const now = Date.now();
@@ -475,7 +497,6 @@ apiRouter.post("/index", async (req, res) => {
 
     try {
       const result = await runIndexInWorker(rootPath, (progress) => {
-        // Worker messages are the single source of truth for live UI progress.
         job.stage = progress.stage;
         job.totalFiles = progress.totalFiles;
         job.completedFiles = progress.completedFiles;
@@ -579,6 +600,12 @@ apiRouter.delete("/index", async (_req, res) => {
 // POST /api/watch
 
 apiRouter.post("/watch", async (req, res) => {
+  if (getLicense() !== "Pro") {
+    return res.status(403).json({
+      error: LIVE_WATCH_PRO_ONLY_MESSAGE
+    });
+  }
+
   const validation =
     await scanRequestSchema.safeParseAsync(req.body);
 
@@ -641,6 +668,13 @@ apiRouter.post("/search", async (req, res) => {
   const searchStartedAt = performance.now();
 
   try {
+    if (
+      getLicense() !== "Pro" &&
+      getSystemStats().totalFiles > FREE_MAX_FILES
+    ) {
+      return res.status(403).json({ error: FREE_FILE_LIMIT_MESSAGE });
+    }
+
     const { query, limit, filter } = validation.data;
 
     // Measure query embedding separately from local vector retrieval.
