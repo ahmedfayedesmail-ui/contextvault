@@ -42,8 +42,21 @@ export const IGNORED_EXTENSIONS = new Set([
   ".jar",
   ".wasm",
   ".pyc",
-  ".pyo"
+  ".pyo",
+  ".map"
 ]);
+
+const IGNORED_FILE_NAMES = new Set([
+  "package-lock.json",
+  "yarn.lock",
+  "pnpm-lock.yaml"
+]);
+
+const IGNORED_FILE_SUFFIXES = [
+  ".lock",
+  ".log",
+  ".min.js"
+];
 
 export const MAX_FILE_SIZE_BYTES = 1024 * 1024;
 
@@ -57,11 +70,15 @@ export const shouldIgnorePath = (
     return IGNORED_DIRECTORIES.has(name);
   }
 
-  const extension = path.extname(name).toLowerCase();
-
-  if (IGNORED_EXTENSIONS.has(extension)) {
+  if (IGNORED_FILE_NAMES.has(name)) {
     return true;
   }
 
-  return name.endsWith(".lock") || name.endsWith(".log");
+  if (IGNORED_FILE_SUFFIXES.some((suffix) => name.endsWith(suffix))) {
+    return true;
+  }
+
+  const extension = path.extname(name).toLowerCase();
+
+  return IGNORED_EXTENSIONS.has(extension);
 };
