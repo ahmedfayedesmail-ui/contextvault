@@ -4,7 +4,7 @@ import { pruneProjectIndex, saveIndexedData } from "../storage/vectors";
 import path from "node:path";
 import type { ProjectFile } from "../types";
 
-const EMBEDDING_BATCH_SIZE = 16;
+const EMBEDDING_BATCH_SIZE = 8;
 
 export interface IndexProjectResult {
   filesCount: number;
@@ -27,13 +27,20 @@ export type IndexProgressCallback = (
 interface FileEmbeddingState {
   file: ProjectFile;
   chunks: ReturnType<typeof chunkFile>;
+  indexedChunks: ReturnType<typeof chunkFile>;
   embeddings: number[][];
   completedChunks: number;
 }
 
+interface EmbeddedChunkBatch {
+  chunks: ReturnType<typeof chunkFile>;
+  embeddings: number[][];
+}
+
 async function embedChunksInBatches(
   chunks: ReturnType<typeof chunkFile>
-): Promise<number[][]> {
+): Promise<EmbeddedChunkBatch> {
+  const indexedChunks: ReturnType<typeof chunkFile> = [];
   const embeddings: number[][] = [];
 
   for (
@@ -46,20 +53,38 @@ async function embedChunksInBatches(
       offset + EMBEDDING_BATCH_SIZE
     );
 
-    const batchEmbeddings = await generateEmbeddingBatch(
-      batch.map((chunk) => chunk.content)
+    const batchResults = await generateEmbeddingBatch(
+      batch.map((chunk) => chunk.content),
+      batch.map((chunk) => chunk.filePath)
     );
 
-    if (batchEmbeddings.length !== batch.length) {
+    if (batchResults.length !== batch.length) {
       throw new Error(
-        `Embedding batch returned ${batchEmbeddings.length} vectors for ${batch.length} chunks.`
+        "Embedding batch returned " + batchResults.length +
+        " results for " + batch.length + " chunks."
       );
     }
 
-    embeddings.push(...batchEmbeddings);
+    for (let index = 0; index < batch.length; index++) {
+      const embedding = batchResults[index];
+
+      if (embedding === null) {
+        continue;
+      }
+
+      if (!embedding) {
+        throw new Error("Ollama returned an incomplete embedding batch.");
+      }
+
+      indexedChunks.push(batch[index]);
+      embeddings.push(embedding);
+    }
   }
 
-  return embeddings;
+  return {
+    chunks: indexedChunks,
+    embeddings
+  };
 }
 
 export async function indexProject(
@@ -76,12 +101,13 @@ export async function indexProject(
   });
 
   const normalizedRoot = path.resolve(rootPath);
-  console.info(`[ContextVault] Starting indexing: ${normalizedRoot}`);
+  console.info("[ContextVault] Starting indexing: " + normalizedRoot);
 
   const files = await scanProject(normalizedRoot);
   const fileStates: FileEmbeddingState[] = files.map((file) => ({
     file,
     chunks: chunkFile(file),
+    indexedChunks: [],
     embeddings: [],
     completedChunks: 0
   }));
@@ -93,12 +119,16 @@ export async function indexProject(
 
   let completedFiles = 0;
   let completedChunks = 0;
+  let successfulChunks = 0;
+  let skippedChunks = 0;
   let nextFileToPersist = 0;
 
-  console.info(`[ContextVault] Found ${files.length} files.`);
-  console.info(`[ContextVault] Generated ${totalChunks} chunks.`);
+  console.info("[ContextVault] Found " + files.length + " files.");
+  console.info("[ContextVault] Generated " + totalChunks + " chunks.");
   console.info(
-    `[ContextVault] Embedding batch size: up to ${EMBEDDING_BATCH_SIZE} chunks per Ollama request, combined across file boundaries.`
+    "[ContextVault] Embedding batch size: up to " +
+    EMBEDDING_BATCH_SIZE +
+    " chunks per Ollama request, combined across file boundaries."
   );
 
   onProgress?.({
@@ -110,9 +140,8 @@ export async function indexProject(
     currentFile: null
   });
 
-  // Flatten only chunk references, not source content. This allows small files
-  // to share a full 16-chunk Ollama request instead of issuing one request per
-  // file. Each file is still persisted atomically after all its chunks finish.
+  // Flatten only chunk references, not source content. Each file is still
+  // persisted atomically after all of its chunks have been attempted.
   const workItems = fileStates.flatMap((state, fileIndex) =>
     state.chunks.map((chunk) => ({
       fileIndex,
@@ -128,17 +157,28 @@ export async function indexProject(
         break;
       }
 
-      saveIndexedData(
-        [state.file],
-        state.chunks,
-        state.embeddings,
-        normalizedRoot
-      );
+      if (state.chunks.length === 0 || state.indexedChunks.length > 0) {
+        saveIndexedData(
+          [state.file],
+          state.indexedChunks,
+          state.embeddings,
+          normalizedRoot
+        );
+      } else {
+        // Preserve any previous complete index entry when every chunk in
+        // this file failed, rather than replacing it with an empty file.
+        console.warn(
+          "[ContextVault] Preserved the previous index for " +
+          state.file.path +
+          " because none of its chunks could be embedded."
+        );
+      }
 
       completedFiles++;
       console.info(
-        `[ContextVault] Saved ${completedFiles}/${files.length} files; ` +
-        `${completedChunks}/${totalChunks} chunks`
+        "[ContextVault] Processed " + completedFiles + "/" +
+        files.length + " files; " + successfulChunks + "/" +
+        totalChunks + " chunks embedded, " + skippedChunks + " skipped."
       );
 
       nextFileToPersist++;
@@ -158,34 +198,48 @@ export async function indexProject(
       offset + EMBEDDING_BATCH_SIZE
     );
 
-    const batchEmbeddings = await generateEmbeddingBatch(
-      batch.map((item) => item.chunk.content)
+    const batchResults = await generateEmbeddingBatch(
+      batch.map((item) => item.chunk.content),
+      batch.map((item) => item.chunk.filePath)
     );
 
-    if (batchEmbeddings.length !== batch.length) {
+    if (batchResults.length !== batch.length) {
       throw new Error(
-        `Embedding batch returned ${batchEmbeddings.length} vectors for ${batch.length} chunks.`
+        "Embedding batch returned " + batchResults.length +
+        " results for " + batch.length + " chunks."
       );
     }
 
     for (let index = 0; index < batch.length; index++) {
       const item = batch[index];
       const state = fileStates[item.fileIndex];
-      const embedding = batchEmbeddings[index];
+      const embedding = batchResults[index];
 
-      if (!state || !embedding) {
+      if (!state) {
+        throw new Error("Embedding batch referenced an unknown project file.");
+      }
+
+      state.completedChunks++;
+
+      if (embedding === null) {
+        skippedChunks++;
+        continue;
+      }
+
+      if (!embedding) {
         throw new Error("Ollama returned an incomplete embedding batch.");
       }
 
+      state.indexedChunks.push(item.chunk);
       state.embeddings.push(embedding);
-      state.completedChunks++;
+      successfulChunks++;
     }
 
     completedChunks += batch.length;
 
     const lastItem = batch[batch.length - 1];
     const currentFile = lastItem
-      ? fileStates[lastItem.fileIndex].file.path
+      ? fileStates[lastItem.fileIndex]?.file.path ?? null
       : null;
 
     // Keep the existing per-file atomic persistence boundary even though
@@ -205,21 +259,27 @@ export async function indexProject(
   // This also handles the empty-project case and any trailing zero-chunk files.
   persistCompletedFiles();
 
-  // Prune stale paths only after every current file has been embedded and saved.
-  // If scanning or embedding fails, the previous complete project index remains.
+  // Prune stale paths only after every current file has been processed. A
+  // file whose chunks all failed is left out of persistence, preserving its
+  // previously stored index entry if one exists.
   const pruneResult = pruneProjectIndex(
     normalizedRoot,
     files.map((file) => file.path)
   );
 
   console.info(
-    `[ContextVault] Stale-file cleanup completed: ${pruneResult.deletedFiles} files, ${pruneResult.deletedChunks} chunks removed.`
+    "[ContextVault] Stale-file cleanup completed: " +
+    pruneResult.deletedFiles + " files, " +
+    pruneResult.deletedChunks + " chunks removed."
   );
-  console.info("[ContextVault] Indexing completed successfully.");
+  console.info(
+    "[ContextVault] Indexing completed successfully. Embedded " +
+    successfulChunks + " chunks; skipped " + skippedChunks + "."
+  );
 
   return {
     filesCount: files.length,
-    chunksCount: completedChunks
+    chunksCount: successfulChunks
   };
 }
 
@@ -228,6 +288,21 @@ export async function indexSingleFile(
   rootPath: string
 ): Promise<void> {
   const chunks = chunkFile(file);
-  const embeddings = await embedChunksInBatches(chunks);
-  saveIndexedData([file], chunks, embeddings, path.resolve(rootPath));
+  const result = await embedChunksInBatches(chunks);
+
+  if (chunks.length > 0 && result.chunks.length === 0) {
+    console.warn(
+      "[ContextVault] Preserved the previous index for " +
+      file.path +
+      " because none of its chunks could be embedded."
+    );
+    return;
+  }
+
+  saveIndexedData(
+    [file],
+    result.chunks,
+    result.embeddings,
+    path.resolve(rootPath)
+  );
 }
