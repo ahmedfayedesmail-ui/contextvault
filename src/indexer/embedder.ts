@@ -4,12 +4,18 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import {
+  isMainThread,
+  parentPort,
+  threadId
+} from "node:worker_threads";
 
 const MODEL_NAME = "nomic-embed-text";
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_KEEP_ALIVE = "30m";
 
 export type EmbeddingTask = "search_document" | "search_query";
+
 
 export const MAX_PENDING_EMBEDDING_REQUESTS = 10;
 
@@ -100,6 +106,78 @@ async function drainEmbeddingQueue(): Promise<void> {
       void drainEmbeddingQueue();
     }
   }
+}
+
+interface EmbeddingBrokerResponse {
+  type: "embedding-response";
+  requestId: string;
+  embeddings?: Array<number[] | null>;
+  error?: string;
+  statusCode?: number;
+}
+
+interface PendingEmbeddingRequest {
+  resolve: (embeddings: Array<number[] | null>) => void;
+  reject: (error: Error) => void;
+}
+
+const pendingEmbeddingRequests = new Map<string, PendingEmbeddingRequest>();
+let nextEmbeddingRequestId = 0;
+
+if (!isMainThread && parentPort) {
+  parentPort.on("message", (message: EmbeddingBrokerResponse) => {
+    if (
+      !message ||
+      message.type !== "embedding-response" ||
+      typeof message.requestId !== "string"
+    ) {
+      return;
+    }
+
+    const pending = pendingEmbeddingRequests.get(message.requestId);
+    if (!pending) {
+      return;
+    }
+
+    pendingEmbeddingRequests.delete(message.requestId);
+
+    if (message.error) {
+      const error = new Error(message.error) as Error & { statusCode?: number };
+      if (message.statusCode !== undefined) {
+        error.statusCode = message.statusCode;
+      }
+      pending.reject(error);
+      return;
+    }
+
+    pending.resolve(message.embeddings ?? []);
+  });
+}
+
+function requestEmbeddingBatchFromParent(
+  texts: string[],
+  filePaths: string[] | undefined,
+  task: EmbeddingTask
+): Promise<Array<number[] | null>> {
+  if (!parentPort) {
+    return Promise.reject(
+      new Error("The embedding worker has no parent message port.")
+    );
+  }
+
+  const requestId = threadId + ":" + (++nextEmbeddingRequestId);
+
+  return new Promise((resolve, reject) => {
+    pendingEmbeddingRequests.set(requestId, { resolve, reject });
+
+    parentPort.postMessage({
+      type: "embedding-request",
+      requestId,
+      texts,
+      filePaths,
+      task
+    });
+  });
 }
 
 interface OllamaEmbedResponse {
@@ -394,17 +472,24 @@ export async function generateEmbeddingBatch(
     );
   }
 
+  // Workers delegate Ollama access to the main thread. This keeps all
+  // application embedding traffic behind one broker/queue rather than
+  // opening an independent Ollama request stream per worker.
+  if (!isMainThread && parentPort) {
+    return requestEmbeddingBatchFromParent(texts, filePaths, task);
+  }
+
   return enqueueEmbeddingTask(async () => {
     const baseUrl = (
-        process.env.OLLAMA_URL ??
-        "http://127.0.0.1:11434"
-      ).replace(/\/+$/, "");
-
+      process.env.OLLAMA_URL ??
+      "http://127.0.0.1:11434"
+    ).replace(/\/+$/, "");
+  
     const endpoint = baseUrl + "/api/embed";
     const timeoutMs = getEmbeddingTimeoutMs();
     const keepAlive = process.env.OLLAMA_KEEP_ALIVE?.trim() || DEFAULT_KEEP_ALIVE;
     const embeddings: Array<number[] | null> = new Array(texts.length).fill(null);
-
+  
     const embedRange = async (
       start: number,
       end: number
@@ -412,7 +497,7 @@ export async function generateEmbeddingBatch(
       const batch = texts
         .slice(start, end)
         .map((text) => task + ": " + text);
-
+  
       try {
         const batchEmbeddings = await requestEmbeddingBatch(
           batch,
@@ -420,7 +505,7 @@ export async function generateEmbeddingBatch(
           timeoutMs,
           keepAlive
         );
-
+  
         for (let index = 0; index < batchEmbeddings.length; index++) {
           embeddings[start + index] = batchEmbeddings[index];
         }
@@ -428,7 +513,7 @@ export async function generateEmbeddingBatch(
         if (!isRetryableEofBadRequest(error)) {
           throw error;
         }
-
+  
         if (batch.length === 1) {
           const filePath = filePaths?.[start] ?? "<non-file input>";
           logEmbeddingDiagnostic(
@@ -438,7 +523,7 @@ export async function generateEmbeddingBatch(
           );
           return;
         }
-
+  
         const midpoint = start + Math.floor(batch.length / 2);
         logEmbeddingDiagnostic(
           "warn",
@@ -446,13 +531,12 @@ export async function generateEmbeddingBatch(
           batch.length + " chunks; retrying as batches of " +
           (midpoint - start) + " and " + (end - midpoint) + "."
         );
-
+  
         await embedRange(start, midpoint);
         await embedRange(midpoint, end);
       }
     };
-
-
+  
     await embedRange(0, texts.length);
     return embeddings;
   });

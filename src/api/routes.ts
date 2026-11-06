@@ -14,7 +14,7 @@ import { z } from "zod";
 
 import { scanProject } from "../indexer/fileWatcher";
 
-import { indexProject } from "../indexer/pipeline";
+import { runIndexInWorker } from "../indexer/workerManager";
 
 import { startLiveWatcher, stopLiveWatcher } from "../indexer/liveWatcher";
 
@@ -474,7 +474,8 @@ apiRouter.post("/index", async (req, res) => {
     job.updatedAt = Date.now();
 
     try {
-      const result = await indexProject(rootPath, (progress) => {
+      const result = await runIndexInWorker(rootPath, (progress) => {
+        // Worker messages are the single source of truth for live UI progress.
         job.stage = progress.stage;
         job.totalFiles = progress.totalFiles;
         job.completedFiles = progress.completedFiles;
