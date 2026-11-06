@@ -16,7 +16,10 @@ import type { DatabaseSync } from "node:sqlite";
 import type { ProjectFile } from "../src/types";
 
 vi.mock("../src/indexer/embedder", () => ({
-  generateEmbedding: vi.fn(async () => [0.1, 0.2, 0.3])
+  generateEmbedding: vi.fn(async () => [0.1, 0.2, 0.3]),
+  generateEmbeddingBatch: vi.fn(async (texts: string[]) =>
+    texts.map(() => [0.1, 0.2, 0.3])
+  )
 }));
 
 let database: DatabaseSync;
@@ -27,7 +30,7 @@ let getSystemStats: () => {
   totalChunks: number;
 };
 
-let indexSingleFile: (file: ProjectFile) => Promise<void>;
+let indexSingleFile: (file: ProjectFile, rootPath: string) => Promise<void>;
 
 const originalDatabasePath = process.env.DATABASE_PATH;
 
@@ -68,16 +71,18 @@ describe("getSystemStats", () => {
     const insertFile = database.prepare(`
       INSERT INTO files (
         path,
+        root_path,
         content,
         mtime,
         size,
         language
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     insertFile.run(
       "src/first.ts",
+      "/contextvault-live-watcher-test",
       "export const first = true;",
       "2026-11-04T10:00:00.000Z",
       27,
@@ -86,6 +91,7 @@ describe("getSystemStats", () => {
 
     insertFile.run(
       "src/second.ts",
+      "/contextvault-live-watcher-test",
       "export const second = true;",
       "2026-11-04T10:00:00.000Z",
       29,
@@ -124,16 +130,18 @@ describe("GET /api/stats", () => {
     const insertFile = database.prepare(`
       INSERT INTO files (
         path,
+        root_path,
         content,
         mtime,
         size,
         language
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     insertFile.run(
       "src/stats-test.ts",
+      "/contextvault-live-watcher-stats-test",
       "export const stats = true;",
       "2026-11-04T10:00:00.000Z",
       27,
@@ -181,7 +189,7 @@ describe("indexSingleFile", () => {
       language: "typescript"
     };
 
-    await indexSingleFile(file);
+    await indexSingleFile(file, "/contextvault-live-watcher-index-test");
 
     const savedFile = database.prepare(`
       SELECT id, path, content, mtime, size, language
