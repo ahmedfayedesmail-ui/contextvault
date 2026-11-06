@@ -10,7 +10,7 @@ import { indexProject } from "./indexer/pipeline";
 import { searchVectors } from "./storage/vectors";
 
 const SERVER_NAME = "contextvault";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "1.2.0";
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error
