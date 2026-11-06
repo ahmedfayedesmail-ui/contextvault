@@ -3,13 +3,14 @@ import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { performance } from "node:perf_hooks";
 
-import { generateEmbedding } from "./indexer/embedder";
+import { generateEmbedding, warmupEmbeddingModel } from "./indexer/embedder";
 import { indexProject } from "./indexer/pipeline";
 import { searchVectors } from "./storage/vectors";
 
 const SERVER_NAME = "contextvault";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "1.2.0";
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error
@@ -35,9 +36,24 @@ export function createContextVaultMcpServer(): McpServer {
       }
     },
     async ({ query, limit }) => {
+      const searchStartedAt = performance.now();
+
       try {
+        const embeddingStartedAt = performance.now();
         const queryEmbedding = await generateEmbedding(query);
+        const embeddingDurationMs = performance.now() - embeddingStartedAt;
+
+        const vectorSearchStartedAt = performance.now();
         const results = searchVectors(queryEmbedding, limit ?? 5);
+        const vectorSearchDurationMs = performance.now() - vectorSearchStartedAt;
+        const totalDurationMs = performance.now() - searchStartedAt;
+
+        // MCP communicates over stdout; send diagnostics to stderr only.
+        console.error(
+          `[ContextVault] MCP search profiling: embedding=${embeddingDurationMs.toFixed(1)}ms, ` +
+          `vector_search=${vectorSearchDurationMs.toFixed(1)}ms, ` +
+          `total=${totalDurationMs.toFixed(1)}ms, results=${results.length}.`
+        );
 
         return {
           content: [
@@ -129,4 +145,8 @@ export async function startMcpServer(): Promise<void> {
   const transport = new StdioServerTransport();
 
   await server.connect(transport);
+
+  // Warm the shared local Ollama model in the background so the first MCP
+  // search does not pay the full cold model-load cost.
+  void warmupEmbeddingModel();
 }

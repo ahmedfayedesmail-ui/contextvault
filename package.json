@@ -1,6 +1,6 @@
 {
   "name": "contextvault",
-  "version": "0.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Local-first developer context and memory system",
   "main": "dist/server.js",
@@ -13,7 +13,7 @@
     "start": "node dist/server.js",
     "test": "cross-env NODE_OPTIONS=--experimental-sqlite vitest run",
     "lint": "eslint src/",
-    "mcp": "tsx src/mcp-entry.ts"
+    "mcp": "cross-env NODE_OPTIONS=--experimental-sqlite tsx src/mcp-entry.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

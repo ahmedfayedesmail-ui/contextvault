@@ -15,7 +15,7 @@ export function startLiveWatcher(rootPath: string): void {
 
   liveWatcher = watchProject(rootPath, (file) => {
     indexingQueue = indexingQueue
-      .then(() => indexSingleFile(file))
+      .then(() => indexSingleFile(file, rootPath))
       .then(() => {
         console.info(`[Live] Indexed: ${file.path}`);
       })

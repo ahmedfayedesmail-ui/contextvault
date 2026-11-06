@@ -7,12 +7,12 @@ import {
   vi
 } from "vitest";
 
-import { generateEmbedding } from "../src/indexer/embedder";
+import { generateEmbedding, generateEmbeddingBatch } from "../src/indexer/embedder";
 
 const originalOllamaUrl = process.env.OLLAMA_URL;
 
 beforeEach(() => {
-  process.env.OLLAMA_URL = "http://localhost:11434";
+  process.env.OLLAMA_URL = "http://127.0.0.1:11434";
 });
 
 afterEach(() => {
@@ -24,6 +24,89 @@ afterEach(() => {
   } else {
     process.env.OLLAMA_URL = originalOllamaUrl;
   }
+});
+
+describe("generateEmbeddingBatch", () => {
+  it("should send multiple texts in one Ollama request and return matching vectors", async () => {
+    const expectedEmbeddings = [
+      [0.1, 0.2, 0.3],
+      [0.4, 0.5, 0.6]
+    ];
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          model: "nomic-embed-text",
+          embeddings: expectedEmbeddings
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      )
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateEmbeddingBatch([
+      "first code chunk",
+      "second code chunk"
+    ]);
+
+    expect(result).toEqual(expectedEmbeddings);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:11434/api/embed",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "nomic-embed-text",
+          input: ["first code chunk", "second code chunk"],
+          keep_alive: "30m"
+        }),
+        signal: expect.any(AbortSignal)
+      })
+    );
+  });
+
+  it("should reject an empty batch without calling Ollama", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(generateEmbeddingBatch([])).rejects.toThrow(
+      "provide at least one input text"
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("should reject a response containing a different number of vectors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          model: "nomic-embed-text",
+          embeddings: [[0.1, 0.2]]
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      generateEmbeddingBatch(["first", "second"])
+    ).rejects.toThrow(
+      "Ollama returned 1 embeddings for 2 input texts"
+    );
+  });
 });
 
 describe("generateEmbedding", () => {
@@ -59,7 +142,7 @@ describe("generateEmbedding", () => {
     expect(result).toEqual(expectedEmbedding);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:11434/api/embed",
+      "http://127.0.0.1:11434/api/embed",
       {
         method: "POST",
         headers: {
@@ -67,8 +150,10 @@ describe("generateEmbedding", () => {
         },
         body: JSON.stringify({
           model: "nomic-embed-text",
-          input: "ContextVault test"
-        })
+          input: "ContextVault test",
+          keep_alive: "30m"
+        }),
+        signal: expect.any(AbortSignal)
       }
     );
   });

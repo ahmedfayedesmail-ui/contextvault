@@ -1,5 +1,7 @@
 # ContextVault MCP Server — Setup and User Guide
 
+For the planned fresh-install, MCP Inspector, indexing, search, and embedding-latency checks, follow the [Comprehensive testing guide](TESTING.md).
+
 ContextVault gives a compatible local AI coding client access to a semantic index of a project on the same computer. The application indexes selected project files, generates embeddings with local Ollama, and stores the index in local SQLite. Its MCP server exposes two tools: `index_project` and `search_context`.
 
 ## Important: the application, the local MCP server, and the Agensi skill are separate
@@ -8,7 +10,7 @@ There are three distinct pieces:
 
 1. **ContextVault application** — the local app, dashboard, indexer, Ollama integration, and SQLite database. Install it from this GitHub repository.
 2. **ContextVault local MCP server** — the stdio server that exposes `index_project` and `search_context` to a local AI client. Configure it separately in that client.
-3. **ContextVault on Agensi** — an agent-instruction skill (`SKILL.md)) distributed by Agensi. Installing or invoking the Agensi skill does **not** download the ContextVault application or configure the local MCP server. Agensi's marketplace MCP connection is separate from ContextVault's local MCP connection.
+3. **ContextVault on Agensi** — an agent-instruction skill (`SKILL.md`) distributed by Agensi. Installing or invoking the Agensi skill does **not** download the ContextVault application or configure the local MCP server. Agensi's marketplace MCP connection is separate from ContextVault's local MCP connection.
 
 For ContextVault code search to work, the local application must be installed and the local MCP tools must be connected to the same AI client that is using the skill. Do not assume the Agensi connection provides the ContextVault tools.
 
@@ -136,6 +138,20 @@ If more than one project is indexed into the same local database, `search_contex
 - ContextVault's indexing process does not send project files to a hosted embedding API.
 - When the MCP server returns relevant code snippets to an AI client, those snippets enter the AI provider's context and may be processed under that provider's own terms and data-handling settings. Do not describe the whole workflow as fully offline unless the connected AI model is also local.
 - ContextVault writes index data to its local SQLite database; it does not edit the project's source files during indexing.
+
+## Embedding performance and diagnostics
+
+When the local dashboard or local MCP server starts, ContextVault sends a small background warm-up embedding request to Ollama. This loads `nomic-embed-text` before the first user search without delaying the app or MCP connection from starting. The warm-up is non-fatal: if Ollama is unavailable, the app and MCP server still start and log the reason.
+
+Embedding requests keep the model loaded for 30 minutes by default. The request timeout defaults to 120 seconds. You can override these settings with environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama should keep the embedding model loaded after a request. |
+| `OLLAMA_EMBED_TIMEOUT_MS` | `120000` | Maximum time to wait for one embedding request. Values below 1000 are ignored. |
+| `OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama API base URL. |
+
+ContextVault logs the wall-clock embedding duration for every successful request. When Ollama returns timing metadata, the log also includes model-load and total server time. Timeout and HTTP errors are logged with elapsed time and a clear error message. During project indexing, ContextVault sends chunks to Ollama in batches of up to 16 texts per `/api/embed` request, preserving atomic persistence per file. Search profiling separately logs embedding duration and local vector-search duration for both the HTTP search route and the MCP `search_context` tool. Diagnostics are persisted to `embedding.log` under `%LOCALAPPDATA%\\ContextVault\\logs` on Windows, `~/Library/Logs/ContextVault` on macOS, or `~/.local/state/contextvault/logs` on Linux. Set `CONTEXTVAULT_LOG_DIR` to override the log directory. Use these logs to distinguish model-load delay from ongoing embedding latency; warm-up may reduce cold-start delay but does not guarantee a fixed search time on every computer.
 
 ## Troubleshooting
 

@@ -12,7 +12,7 @@
     <img src="https://img.shields.io/badge/Integration-MCP-6750A4" alt="MCP integration" />
     <a href="https://github.com/ahmedfayedesmail-ui/contextvault/stargazers"><img src="https://img.shields.io/github/stars/ahmedfayedesmail-ui/contextvault?style=flat&logo=github" alt="GitHub stars" /></a>
     <a href="https://github.com/ahmedfayedesmail-ui/contextvault/network/members"><img src="https://img.shields.io/github/forks/ahmedfayedesmail-ui/contextvault?style=flat&logo=github" alt="GitHub forks" /></a>
-    <img src="https://img.shields.io/badge/version-0.1.0-8b7cff" alt="Version 0.1.0" />
+    <img src="https://img.shields.io/badge/version-1.2.0-8b7cff" alt="Version 1.2.0" />
   </p>
 
   <p>
@@ -23,6 +23,8 @@
     <a href="#connect-your-ai-tools-with-mcp"><strong>MCP setup</strong></a>
     ·
     <a href="#pricing"><strong>Pricing</strong></a>
+    ·
+    <a href="TESTING.md"><strong>Testing guide</strong></a>
   </p>
 </div>
 
@@ -78,8 +80,8 @@ Choose the installation method for your operating system. The native installers 
 
 1. Download the repository using **Code → Download ZIP**, then extract it.
 2. Right-click `install-contextvault.ps1` and choose **Run with PowerShell**.
-3. The installer prepares Node.js 22, installs Ollama (using winget with an official-installer fallback), starts Ollama, downloads `nomic-embed-text`, installs dependencies, and creates a desktop shortcut.
-4. Open ContextVault and visit [http://localhost:3737](http://localhost:3737).
+3. The installer prepares a supported Node.js 22 runtime (using a verified official archive when needed), installs Ollama (using winget with a signed official-installer fallback), starts Ollama, downloads `nomic-embed-text`, and installs dependencies. It displays each stage, retries downloads, shows npm output, and saves a diagnostic log under `%LOCALAPPDATA%\\ContextVault\\logs`.
+4. Open ContextVault and visit [http://localhost:3737](http://localhost:3737). The app warms the Ollama embedding model in the background at startup, so the dashboard can open immediately while the model is prepared for the first search.
 
 ### macOS
 
@@ -129,6 +131,17 @@ Files and folders excluded by the scanner's ignore rules are not indexed.
 - **Internet:** Required for first-time setup and downloading the embedding model.
 
 See the [official Ollama Windows requirements](https://docs.ollama.com/windows) for platform details.
+
+### Embedding performance
+
+ContextVault warms the local Ollama embedding model when the dashboard or local MCP server starts and keeps it loaded for 30 minutes by default. Successful embedding requests log elapsed time and, when available, Ollama's model-load timing. Project indexing sends up to 16 chunk texts per Ollama embedding request instead of one request per chunk. The HTTP search route and MCP `search_context` also log embedding and local vector-search timings separately. Logs are saved to `%LOCALAPPDATA%\\ContextVault\\logs\\embedding.log` on Windows, `~/Library/Logs/ContextVault/embedding.log` on macOS, or `~/.local/state/contextvault/logs/embedding.log` on Linux.
+
+- `OLLAMA_KEEP_ALIVE` — defaults to `30m`.
+- `OLLAMA_EMBED_TIMEOUT_MS` — defaults to `120000` (120 seconds).
+- `OLLAMA_URL` — defaults to `http://127.0.0.1:11434`.
+- `CONTEXTVAULT_LOG_DIR` — optional override for the diagnostic log directory.
+
+See [README_MCP.md](README_MCP.md#embedding-performance-and-diagnostics) for details.
 
 ## Connect your AI tools with MCP
 
@@ -212,7 +225,7 @@ The default SQLite database is created at `data/contextvault.db`.
 | Setting | Default |
 | --- | --- |
 | `PORT` | `3737` |
-| `OLLAMA_URL` | `http://localhost:11434` |
+| `OLLAMA_URL` | `http://127.0.0.1:11434` |
 | `DATABASE_PATH` | `data/contextvault.db` |
 
 Set `DATABASE_PATH` to use a different local SQLite database file. Keep it consistent between the web application and MCP client when both should use the same index.

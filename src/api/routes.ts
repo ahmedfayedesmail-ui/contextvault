@@ -8,6 +8,8 @@ import { stat } from "node:fs/promises";
 
 import path from "node:path";
 
+import { performance } from "node:perf_hooks";
+
 import { z } from "zod";
 
 import { scanProject } from "../indexer/fileWatcher";
@@ -74,7 +76,7 @@ function buildMcpConfiguration() {
         args,
         env: {
           DATABASE_PATH: resolvedDatabasePath,
-          OLLAMA_URL: process.env.OLLAMA_URL ?? "http://localhost:11434",
+          OLLAMA_URL: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434",
           NODE_OPTIONS: nodeOptions
         }
       }
@@ -601,20 +603,27 @@ apiRouter.post("/search", async (req, res) => {
     });
   }
 
+  const searchStartedAt = performance.now();
+
   try {
     const { query, limit } = validation.data;
 
-    // Convert the search query into an embedding.
+    // Measure query embedding separately from local vector retrieval.
+    const embeddingStartedAt = performance.now();
+    const queryEmbedding = await generateEmbedding(query);
+    const embeddingDurationMs = performance.now() - embeddingStartedAt;
 
-    const queryEmbedding = await generateEmbedding(
-      query
-    );
+    // Vector retrieval is synchronous today; keep its timing independent so
+    // profiling can show whether Ollama or local similarity search dominates.
+    const vectorSearchStartedAt = performance.now();
+    const results = searchVectors(queryEmbedding, limit ?? 5);
+    const vectorSearchDurationMs = performance.now() - vectorSearchStartedAt;
+    const totalDurationMs = performance.now() - searchStartedAt;
 
-    // Find the closest stored vectors.
-
-    const results = searchVectors(
-      queryEmbedding,
-      limit ?? 5
+    console.info(
+      `[ContextVault] Search profiling: embedding=${embeddingDurationMs.toFixed(1)}ms, ` +
+      `vector_search=${vectorSearchDurationMs.toFixed(1)}ms, ` +
+      `total=${totalDurationMs.toFixed(1)}ms, results=${results.length}.`
     );
 
     return res.json({

@@ -4,6 +4,8 @@ import express from "express";
 
 import { apiRouter } from "./api/routes";
 
+import { warmupEmbeddingModel } from "./indexer/embedder";
+
 import "./storage/db";
 
 import type { HealthResponse } from "./types";
@@ -21,7 +23,7 @@ app.use(express.json());
 app.get("/health", (_req, res) => {
   const response: HealthResponse = {
     status: "ok",
-    version: "0.1.0"
+    version: "1.2.0"
   };
 
   res.json(response);
@@ -40,5 +42,9 @@ if (require.main === module) {
     console.log(
       `ContextVault running on http://localhost:${PORT}`
     );
+
+    // Warm the local embedding model in the background. This keeps startup
+    // responsive while avoiding the model-load penalty on the first search.
+    void warmupEmbeddingModel();
   });
 }
