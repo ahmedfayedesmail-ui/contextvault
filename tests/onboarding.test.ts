@@ -10,6 +10,7 @@ import {
 } from "vitest";
 
 import {
+  mkdir,
   mkdtemp,
   rm,
   writeFile
@@ -87,6 +88,8 @@ beforeEach(async () => {
   database.exec(`
     DELETE FROM chunks;
     DELETE FROM files;
+    UPDATE settings SET value = 'Free' WHERE key = 'license';
+    UPDATE settings SET value = 'false' WHERE key = 'license_verified';
   `);
 
   fixtureDirectory = await mkdtemp(
@@ -221,6 +224,102 @@ describe("ContextVault onboarding", () => {
     expect(savedFile).toBeDefined();
     expect(savedFile?.path).toBe("welcome.ts");
     expect(savedFile?.content).toBe(source);
+  });
+
+  it("blocks Free users from indexing or watching a second project", async () => {
+    const existingRoot = path.join(fixtureDirectory, "already-indexed");
+    await mkdir(existingRoot, { recursive: true });
+
+    database.prepare(`
+      INSERT INTO files (
+        path, root_path, content, mtime, size, language
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      "existing.ts",
+      existingRoot,
+      "export const existing = true;",
+      "2026-11-06T08:00:00.000Z",
+      28,
+      "typescript"
+    );
+
+    const expectedError =
+      "Free plan is limited to one project. Please upgrade to Pro or clear your current index.";
+
+    const indexResponse = await request(app)
+      .post("/api/index")
+      .send({ rootPath: fixtureDirectory });
+
+    expect(indexResponse.status).toBe(403);
+    expect(indexResponse.body.error).toBe(expectedError);
+
+    const watchResponse = await request(app)
+      .post("/api/watch")
+      .send({ rootPath: fixtureDirectory });
+
+    expect(watchResponse.status).toBe(403);
+    expect(watchResponse.body.error).toBe(expectedError);
+  });
+
+  it("allows Free users to reindex their existing project", async () => {
+    const source = "export const sameProject = true;";
+    await writeFile(path.join(fixtureDirectory, "same.ts"), source, "utf8");
+
+    database.prepare(`
+      INSERT INTO files (
+        path, root_path, content, mtime, size, language
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      "same.ts",
+      path.resolve(fixtureDirectory),
+      source,
+      "2026-11-06T08:00:00.000Z",
+      source.length,
+      "typescript"
+    );
+
+    const startResponse = await request(app)
+      .post("/api/index")
+      .send({ rootPath: fixtureDirectory });
+
+    expect(startResponse.status).toBe(202);
+    const job = await waitForIndexJob(startResponse.body.job.jobId);
+    expect(job.status).toBe("completed");
+  });
+
+  it("allows a verified Pro license to index another project", async () => {
+    database.prepare("UPDATE settings SET value = 'Pro' WHERE key = 'license'").run();
+    database.prepare("UPDATE settings SET value = 'true' WHERE key = 'license_verified'").run();
+
+    const existingRoot = path.join(fixtureDirectory, "already-indexed");
+    await mkdir(existingRoot, { recursive: true });
+
+    database.prepare(`
+      INSERT INTO files (
+        path, root_path, content, mtime, size, language
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      "existing.ts",
+      existingRoot,
+      "export const existing = true;",
+      "2026-11-06T08:00:00.000Z",
+      28,
+      "typescript"
+    );
+
+    await writeFile(
+      path.join(fixtureDirectory, "pro-project.ts"),
+      "export const proProject = true;",
+      "utf8"
+    );
+
+    const startResponse = await request(app)
+      .post("/api/index")
+      .send({ rootPath: fixtureDirectory });
+
+    expect(startResponse.status).toBe(202);
+    const job = await waitForIndexJob(startResponse.body.job.jobId);
+    expect(job.status).toBe("completed");
   });
 
   it("updates database statistics while indexing is still running", async () => {

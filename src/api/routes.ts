@@ -25,6 +25,7 @@ import { clearIndexedData, searchVectors } from "../storage/vectors";
 import {
   getSystemStats,
   getLicense,
+  hasIndexedProjectOtherThan,
   setLicense,
   validateLicenseKey,
   resolvedDatabasePath
@@ -403,6 +404,17 @@ apiRouter.post("/index", async (req, res) => {
 
   cleanupFinishedIndexJobs();
 
+  const rootPath = path.resolve(validation.data.rootPath);
+
+  if (
+    getLicense() !== "Pro" &&
+    hasIndexedProjectOtherThan(rootPath)
+  ) {
+    return res.status(403).json({
+      error: "Free plan is limited to one project. Please upgrade to Pro or clear your current index."
+    });
+  }
+
   if (activeIndexJobId) {
     const activeJob = indexJobs.get(activeIndexJobId);
 
@@ -419,7 +431,6 @@ apiRouter.post("/index", async (req, res) => {
     activeIndexJobId = null;
   }
 
-  const rootPath = path.resolve(validation.data.rootPath);
   const now = Date.now();
 
   const job: IndexJob = {
@@ -561,11 +572,18 @@ apiRouter.post("/watch", async (req, res) => {
     });
   }
 
-  try {
-    const rootPath = path.resolve(
-      validation.data.rootPath
-    );
+  const rootPath = path.resolve(validation.data.rootPath);
 
+  if (
+    getLicense() !== "Pro" &&
+    hasIndexedProjectOtherThan(rootPath)
+  ) {
+    return res.status(403).json({
+      error: "Free plan is limited to one project. Please upgrade to Pro or clear your current index."
+    });
+  }
+
+  try {
     startLiveWatcher(rootPath);
 
     return res.json({

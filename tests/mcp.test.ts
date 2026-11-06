@@ -86,6 +86,37 @@ describe("ContextVault MCP server", () => {
 
       expect(indexTool).toBeDefined();
       expect(indexTool?.inputSchema.properties?.rootPath).toBeDefined();
+
+      database.prepare(`
+        INSERT INTO files (
+          path,
+          root_path,
+          content,
+          mtime,
+          size,
+          language
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        "already-indexed.ts",
+        "/contextvault-mcp-existing-project",
+        "export const existing = true;",
+        "2026-11-06T08:00:00.000Z",
+        28,
+        "typescript"
+      );
+
+      const blockedIndex = await client.callTool({
+        name: "index_project",
+        arguments: {
+          rootPath: "/contextvault-mcp-second-project"
+        }
+      });
+
+      expect(blockedIndex.isError).toBe(true);
+      expect(JSON.stringify(blockedIndex.content)).toContain(
+        "Free plan is limited to one project. Please upgrade to Pro or clear your current index."
+      );
     } finally {
       await client.close();
     }

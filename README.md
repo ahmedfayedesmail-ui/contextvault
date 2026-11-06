@@ -24,6 +24,8 @@
     ·
     <a href="#pricing"><strong>Pricing</strong></a>
     ·
+    <a href="ROADMAP.md"><strong>Roadmap</strong></a>
+    ·
     <a href="TESTING.md"><strong>Testing guide</strong></a>
   </p>
 </div>
@@ -230,20 +232,34 @@ The default SQLite database is created at `data/contextvault.db`.
 
 Set `DATABASE_PATH` to use a different local SQLite database file. Keep it consistent between the web application and MCP client when both should use the same index.
 
-## Pricing
+## Free and Pro plans
 
-ContextVault Pro is available in two billing periods:
+ContextVault Free and Pro share the same core search, indexing, MCP, and live-monitoring tools. The enforced difference is the number of indexed project roots.
 
-| Plan | Price |
+| Capability | Free | Pro |
+| --- | --- | --- |
+| Local project indexing | One indexed project at a time | Unlimited project roots (no plan-based cap) |
+| Dashboard semantic search | Included | Included |
+| Local Ollama embeddings and SQLite storage | Included | Included |
+| MCP tools (`index_project`, `search_context`) | Available; indexing follows the one-project limit | Available; no project-count cap |
+| Live file monitoring | Available (one active watcher per app process) | Available (one active watcher per app process) |
+| Project-limit enforcement | A second project root is rejected with HTTP 403 or an MCP tool error | No plan-based project-count limit |
+| License activation | Not required | Verified Lemon Squeezy license key |
+
+The Free limit is based on distinct project roots already represented in the local indexed-file database. Re-indexing the same root is allowed. To switch the Free index to another project, use **Clear Index** first; this removes the current indexed files and chunks.
+
+The project limit is enforced by the HTTP indexing route, the live-watcher route, and the MCP `index_project` tool. A verified Pro license bypasses the project-count check.
+
+### Pro pricing
+
+| Billing period | Price |
 | --- | ---: |
-| **Pro Monthly** | **$9 / month** |
-| **Pro Yearly** | **$79 / year** |
+| Monthly | **$9 / month** |
+| Yearly | **$79 / year** |
 
-To upgrade, open **Settings → Upgrade to Pro** and choose a billing period in Lemon Squeezy checkout. After purchase, enter the license key sent by Lemon Squeezy in **Settings → Activate Pro**. ContextVault validates the key and activates Pro when the key is valid.
+To activate the Pro status, open **Settings → Upgrade to Pro**, complete checkout, then enter the license key in **Settings → Activate Pro**.
 
 [**Choose a Pro plan**](https://witness-engine.lemonsqueezy.com/checkout/buy/2e74fe7c-547a-4483-b09d-5699d6a1b422)
-
-The license activation endpoint is `POST /api/license/activate`.
 
 ## Project links
 
@@ -253,8 +269,9 @@ The license activation endpoint is `POST /api/license/activate`.
 
 ## License
 
-ContextVault is licensed under the [Functional Source License, Version 1.1, MIT Future License (FSL-1.1-MIT)](LICENSE). This is a Fair Source license, not an OSI-approved open-source license while its competing-use restriction applies. It permits internal use, but restricts offering ContextVault or substantially similar functionality as a competing commercial product or service. Each version receives a future MIT license grant effective on its second anniversary.
+ContextVault is licensed under the [Functional Source License, Version 1.1, MIT Future License (FSL-1.1-MIT)](LICENSE). This is a Fair Source license, not an OSI-approved open-source license while its competing-use restriction applies. It allows internal use and restricts offering ContextVault or substantially similar functionality as a competing commercial product or service. Each version receives a future MIT license grant effective on its second anniversary.
 
+See [LICENSING_DECISION.md](LICENSING_DECISION.md) for the product's licensing rationale and commercial-use boundaries.
 ---
 
 <div align="center">
