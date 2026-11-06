@@ -63,6 +63,19 @@ Candidate behavior:
 - Add an optional validated project identifier or root selector to the search_context MCP tool.
 - Preserve an all-project search mode when the user explicitly chooses it.
 
+### 6. Local Vector Search Evaluation (Deferred)
+
+Decision: Do not add `sqlite-vec` during the first 100-user learning period.
+
+Revisit this option only after ContextVault reaches its first 100 users and real project-size data is available. Use observed file counts, chunk counts, database sizes, query latency, and supported hardware to decide whether the current SQLite-backed JavaScript cosine search needs a native vector extension.
+
+If evaluation is justified:
+- Evaluate `sqlite-vec` Flat Mode (exact KNN) first; do not introduce ANN as part of this deferred phase.
+- Benchmark against the current implementation using representative projects and identical embeddings.
+- Measure query latency, indexing/write overhead, database size, memory use, and result agreement.
+- Verify packaging and runtime compatibility on Windows, macOS, and Linux before proposing adoption.
+- Do not add alpha or prerelease dependencies. Adoption requires a separate owner decision and implementation PR.
+
 ## Release discipline
 
 - No v1.3 candidate is implemented by this document.
