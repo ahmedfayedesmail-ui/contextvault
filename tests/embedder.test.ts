@@ -133,6 +133,7 @@ describe("generateEmbeddingBatch", () => {
   it("serializes Ollama requests and rejects work beyond ten pending requests", async () => {
     let activeRequests = 0;
     let maximumConcurrentRequests = 0;
+    const requestOrder: string[] = [];
 
     const fetchMock = vi.fn(async (
       _input: RequestInfo | URL,
@@ -147,6 +148,7 @@ describe("generateEmbeddingBatch", () => {
       try {
         await new Promise<void>((resolve) => setTimeout(resolve, 40));
         const body = JSON.parse(String(init?.body)) as { input: string[] };
+        requestOrder.push(body.input[0] ?? "");
         return new Response(
           JSON.stringify({
             model: "nomic-embed-text",
@@ -187,6 +189,12 @@ describe("generateEmbeddingBatch", () => {
 
     expect(results).toHaveLength(11);
     expect(fetchMock).toHaveBeenCalledTimes(11);
+    expect(requestOrder).toEqual(
+      Array.from(
+        { length: 11 },
+        (_, index) => "search_query: queued request " + index
+      )
+    );
     expect(maximumConcurrentRequests).toBe(1);
     expect(getEmbeddingQueueStats()).toEqual({
       active: 0,
