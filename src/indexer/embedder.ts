@@ -16,6 +16,19 @@ interface OllamaEmbedResponse {
   load_duration?: number;
 }
 
+class OllamaHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly responseBody: string
+  ) {
+    super(
+      "Ollama returned HTTP " + status + ". Response: " +
+      (responseBody || "No response body")
+    );
+    this.name = "OllamaHttpError";
+  }
+}
+
 function getEmbeddingTimeoutMs(): number {
   const configured = Number(process.env.OLLAMA_EMBED_TIMEOUT_MS);
   return Number.isFinite(configured) && configured >= 1_000
@@ -51,7 +64,7 @@ function logEmbeddingDiagnostic(
   level: "info" | "warn" | "error",
   message: string
 ): void {
-  const line = `[ContextVault] ${message}`;
+  const line = "[ContextVault] " + message;
 
   if (level === "error") {
     console.error(line);
@@ -69,7 +82,7 @@ function logEmbeddingDiagnostic(
 
   const logDirectory = getLogDirectory();
   const logPath = join(logDirectory, "embedding.log");
-  const logLine = `${new Date().toISOString()} ${line}\n`;
+  const logLine = new Date().toISOString() + " " + line + "\n";
 
   void mkdir(logDirectory, { recursive: true })
     .then(() => appendFile(logPath, logLine, "utf8"))
@@ -88,7 +101,8 @@ function validateEmbeddingVector(
 ): number[] {
   if (!Array.isArray(value) || value.length === 0) {
     throw new Error(
-      `Invalid Ollama response: embedding at index ${index} is missing or empty.`
+      "Invalid Ollama response: embedding at index " + index +
+      " is missing or empty."
     );
   }
 
@@ -98,42 +112,34 @@ function validateEmbeddingVector(
     )
   ) {
     throw new Error(
-      `Invalid Ollama response: embedding at index ${index} contains a non-finite value.`
+      "Invalid Ollama response: embedding at index " + index +
+      " contains a non-finite value."
     );
   }
 
   return value as number[];
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRetryableEofBadRequest(error: unknown): error is OllamaHttpError {
+  return error instanceof OllamaHttpError &&
+    error.status === 400 &&
+    /\bEOF\b/i.test(error.responseBody);
+}
+
 /**
- * Generates one embedding vector for each input string with one Ollama API
- * request. Ollama accepts an array in the /api/embed input field.
+ * Makes one Ollama request for the supplied text batch.
  */
-export async function generateEmbeddingBatch(
-  texts: string[]
+async function requestEmbeddingBatch(
+  texts: string[],
+  endpoint: string,
+  timeoutMs: number,
+  keepAlive: string
 ): Promise<number[][]> {
-  if (!Array.isArray(texts) || texts.length === 0) {
-    throw new Error(
-      "Cannot generate embeddings: provide at least one input text."
-    );
-  }
-
-  if (texts.some((text) => typeof text !== "string" || !text.trim())) {
-    throw new Error(
-      "Cannot generate embeddings: every input text must be a non-empty string."
-    );
-  }
-
-  const baseUrl = (
-    process.env.OLLAMA_URL ??
-    "http://127.0.0.1:11434"
-  ).replace(/\/+$/, "");
-
-  const endpoint = `${baseUrl}/api/embed`;
-  const timeoutMs = getEmbeddingTimeoutMs();
-  const keepAlive = process.env.OLLAMA_KEEP_ALIVE?.trim() || DEFAULT_KEEP_ALIVE;
   const startedAt = performance.now();
-
   let response: Response;
 
   try {
@@ -145,24 +151,26 @@ export async function generateEmbeddingBatch(
       body: JSON.stringify({
         model: MODEL_NAME,
         input: texts,
-        keep_alive: keepAlive
+        keep_alive: keepAlive,
+        truncate: true
       }),
       signal: AbortSignal.timeout(timeoutMs)
     });
   } catch (error) {
     const elapsedMs = (performance.now() - startedAt).toFixed(1);
-    const details =
-      error instanceof Error
-        ? error.message
-        : String(error);
+    const details = getErrorMessage(error);
 
     if (error instanceof Error && error.name === "TimeoutError") {
       logEmbeddingDiagnostic(
         "error",
-        `Ollama embedding batch timed out after ${elapsedMs}ms (items=${texts.length}, configured timeout=${timeoutMs}ms, model=${MODEL_NAME}).`
+        "Ollama embedding batch timed out after " + elapsedMs +
+        "ms (items=" + texts.length +
+        ", configured timeout=" + timeoutMs +
+        "ms, model=" + MODEL_NAME + ")."
       );
       throw new Error(
-        `Ollama embedding request timed out after ${timeoutMs}ms at ${endpoint}. ` +
+        "Ollama embedding request timed out after " + timeoutMs +
+        "ms at " + endpoint + ". " +
         "Check that Ollama is running and increase OLLAMA_EMBED_TIMEOUT_MS if needed.",
         { cause: error }
       );
@@ -170,12 +178,13 @@ export async function generateEmbeddingBatch(
 
     logEmbeddingDiagnostic(
       "error",
-      `Ollama embedding batch request failed after ${elapsedMs}ms (items=${texts.length}): ${details}`
+      "Ollama embedding batch request failed after " + elapsedMs +
+      "ms (items=" + texts.length + "): " + details
     );
     throw new Error(
-      `Cannot connect to Ollama at ${endpoint}. ` +
-      `Make sure Ollama is running and the model ${MODEL_NAME} is available. ` +
-      `Details: ${details}`,
+      "Cannot connect to Ollama at " + endpoint + ". " +
+      "Make sure Ollama is running and the model " + MODEL_NAME +
+      " is available. Details: " + details,
       { cause: error }
     );
   }
@@ -188,7 +197,8 @@ export async function generateEmbeddingBatch(
     const elapsedMs = (performance.now() - startedAt).toFixed(1);
     logEmbeddingDiagnostic(
       "error",
-      `Could not read Ollama embedding response after ${elapsedMs}ms (items=${texts.length}).`
+      "Could not read Ollama embedding response after " + elapsedMs +
+      "ms (items=" + texts.length + ")."
     );
     throw new Error(
       "Could not read Ollama's embedding response.",
@@ -201,12 +211,10 @@ export async function generateEmbeddingBatch(
   if (!response.ok) {
     logEmbeddingDiagnostic(
       "error",
-      `Ollama embedding batch failed with HTTP ${response.status} after ${elapsedMs.toFixed(1)}ms (items=${texts.length}).`
+      "Ollama embedding batch failed with HTTP " + response.status +
+      " after " + elapsedMs.toFixed(1) + "ms (items=" + texts.length + ")."
     );
-    throw new Error(
-      `Ollama returned HTTP ${response.status}. ` +
-      `Response: ${responseBody || "No response body"}`
-    );
+    throw new OllamaHttpError(response.status, responseBody);
   }
 
   let data: OllamaEmbedResponse;
@@ -216,10 +224,11 @@ export async function generateEmbeddingBatch(
   } catch (error) {
     logEmbeddingDiagnostic(
       "error",
-      `Ollama returned invalid JSON after ${elapsedMs.toFixed(1)}ms (items=${texts.length}).`
+      "Ollama returned invalid JSON after " + elapsedMs.toFixed(1) +
+      "ms (items=" + texts.length + ")."
     );
     throw new Error(
-      `Ollama returned an invalid JSON response: ${responseBody}`,
+      "Ollama returned an invalid JSON response: " + responseBody,
       { cause: error }
     );
   }
@@ -232,27 +241,121 @@ export async function generateEmbeddingBatch(
 
   if (data.embeddings.length !== texts.length) {
     throw new Error(
-      `Ollama returned ${data.embeddings.length} embeddings for ${texts.length} input texts.`
+      "Ollama returned " + data.embeddings.length +
+      " embeddings for " + texts.length + " input texts."
     );
   }
 
-  const embeddings = data.embeddings.map(validateEmbeddingVector);
+  const embeddings = data.embeddings.map((value, index) =>
+    validateEmbeddingVector(value, index)
+  );
   const apiLoadMs = nanosecondsToMilliseconds(data.load_duration);
   const apiTotalMs = nanosecondsToMilliseconds(data.total_duration);
   const metrics = [
-    apiLoadMs === null ? null : `model_load=${apiLoadMs}ms`,
-    apiTotalMs === null ? null : `ollama_total=${apiTotalMs}ms`
+    apiLoadMs === null ? null : "model_load=" + apiLoadMs + "ms",
+    apiTotalMs === null ? null : "ollama_total=" + apiTotalMs + "ms"
   ].filter(Boolean).join(", ");
 
   const operationLabel = texts.length === 1
     ? "Embedding completed"
-    : `Embedding batch completed (items=${texts.length})`;
+    : "Embedding batch completed (items=" + texts.length + ")";
 
   logEmbeddingDiagnostic(
     "info",
-    `${operationLabel} in ${elapsedMs.toFixed(1)}ms (model=${MODEL_NAME}${metrics ? `, ${metrics}` : ""}, keep_alive=${keepAlive}).`
+    operationLabel + " in " + elapsedMs.toFixed(1) +
+    "ms (model=" + MODEL_NAME +
+    (metrics ? ", " + metrics : "") +
+    ", keep_alive=" + keepAlive + ")."
   );
 
+  return embeddings;
+}
+
+/**
+ * Generates embeddings for a batch. HTTP 400 responses containing EOF are
+ * retried by recursively splitting the batch. A single irrecoverable chunk is
+ * returned as null so indexing can continue with the remaining chunks.
+ *
+ * filePaths is positional metadata used to identify a skipped source chunk.
+ */
+export async function generateEmbeddingBatch(
+  texts: string[],
+  filePaths?: string[]
+): Promise<Array<number[] | null>> {
+  if (!Array.isArray(texts) || texts.length === 0) {
+    throw new Error(
+      "Cannot generate embeddings: provide at least one input text."
+    );
+  }
+
+  if (texts.some((text) => typeof text !== "string" || !text.trim())) {
+    throw new Error(
+      "Cannot generate embeddings: every input text must be a non-empty string."
+    );
+  }
+
+  if (filePaths !== undefined && filePaths.length !== texts.length) {
+    throw new Error(
+      "Cannot generate embeddings: filePaths must match the number of input texts."
+    );
+  }
+
+  const baseUrl = (
+    process.env.OLLAMA_URL ??
+    "http://127.0.0.1:11434"
+  ).replace(/\/+$/, "");
+
+  const endpoint = baseUrl + "/api/embed";
+  const timeoutMs = getEmbeddingTimeoutMs();
+  const keepAlive = process.env.OLLAMA_KEEP_ALIVE?.trim() || DEFAULT_KEEP_ALIVE;
+  const embeddings: Array<number[] | null> = new Array(texts.length).fill(null);
+
+  const embedRange = async (
+    start: number,
+    end: number
+  ): Promise<void> => {
+    const batch = texts.slice(start, end);
+
+    try {
+      const batchEmbeddings = await requestEmbeddingBatch(
+        batch,
+        endpoint,
+        timeoutMs,
+        keepAlive
+      );
+
+      for (let index = 0; index < batchEmbeddings.length; index++) {
+        embeddings[start + index] = batchEmbeddings[index];
+      }
+    } catch (error) {
+      if (!isRetryableEofBadRequest(error)) {
+        throw error;
+      }
+
+      if (batch.length === 1) {
+        const filePath = filePaths?.[start] ?? "<non-file input>";
+        logEmbeddingDiagnostic(
+          "error",
+          "Failed to embed chunk from " + filePath + ": " +
+          getErrorMessage(error)
+        );
+        return;
+      }
+
+      const midpoint = start + Math.floor(batch.length / 2);
+      logEmbeddingDiagnostic(
+        "warn",
+        "Ollama returned HTTP 400 with EOF for a batch of " +
+        batch.length + " chunks; retrying as batches of " +
+        (midpoint - start) + " and " + (end - midpoint) + "."
+      );
+
+      await embedRange(start, midpoint);
+      await embedRange(midpoint, end);
+    }
+  };
+
+  await embedRange(0, texts.length);
   return embeddings;
 }
 
@@ -284,13 +387,14 @@ export async function warmupEmbeddingModel(): Promise<void> {
     await generateEmbedding("ContextVault startup warm-up");
     logEmbeddingDiagnostic(
       "info",
-      `Ollama embedding model warm-up completed in ${(performance.now() - startedAt).toFixed(1)}ms.`
+      "Ollama embedding model warm-up completed in " +
+      (performance.now() - startedAt).toFixed(1) + "ms."
     );
   } catch (error) {
     logEmbeddingDiagnostic(
       "warn",
       "Ollama model warm-up was skipped; the model will load on the first embedding request. " +
-      (error instanceof Error ? error.message : String(error))
+      getErrorMessage(error)
     );
   }
 }

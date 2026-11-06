@@ -46,6 +46,16 @@ describe("Project Scanner", () => {
       { recursive: true }
     );
 
+    await mkdir(
+      path.join(fixtureDirectory, "dist"),
+      { recursive: true }
+    );
+
+    await mkdir(
+      path.join(fixtureDirectory, "build"),
+      { recursive: true }
+    );
+
     await writeFile(
       path.join(fixtureDirectory, "src", "app.ts"),
       "export function hello() { return 'world'; }",
@@ -59,14 +69,19 @@ describe("Project Scanner", () => {
     );
 
     await writeFile(
-      path.join(
-        fixtureDirectory,
-        "node_modules",
-        "ignored.ts"
-      ),
+      path.join(fixtureDirectory, "node_modules", "ignored.ts"),
       "This file must be ignored.",
       "utf8"
     );
+
+    await writeFile(path.join(fixtureDirectory, "package-lock.json"), "{}", "utf8");
+    await writeFile(path.join(fixtureDirectory, "yarn.lock"), "dependency@1.0.0", "utf8");
+    await writeFile(path.join(fixtureDirectory, "pnpm-lock.yaml"), "lockfileVersion: 9", "utf8");
+    await writeFile(path.join(fixtureDirectory, "custom.lock"), "generated lock data", "utf8");
+    await writeFile(path.join(fixtureDirectory, "app.min.js"), "minified();", "utf8");
+    await writeFile(path.join(fixtureDirectory, "app.js.map"), "{}", "utf8");
+    await writeFile(path.join(fixtureDirectory, "dist", "bundle.js"), "generated();", "utf8");
+    await writeFile(path.join(fixtureDirectory, "build", "output.js"), "generated();", "utf8");
   });
 
   afterEach(async () => {
@@ -108,6 +123,26 @@ describe("Project Scanner", () => {
         filePath.includes("node_modules")
       )
     ).toBe(false);
+  });
+
+  it("should ignore lockfiles, minified assets, source maps, dist, and build", async () => {
+    const files = await scanProject(fixtureDirectory);
+    const filePaths = files.map((file) => file.path);
+
+    const ignoredPaths = [
+      "package-lock.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      "custom.lock",
+      "app.min.js",
+      "app.js.map",
+      path.join("dist", "bundle.js"),
+      path.join("build", "output.js")
+    ];
+
+    for (const ignoredPath of ignoredPaths) {
+      expect(filePaths).not.toContain(ignoredPath);
+    }
   });
 
   it("should return file metadata correctly", async () => {

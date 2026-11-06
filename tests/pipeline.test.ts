@@ -14,6 +14,7 @@ import os from "node:os";
 import path from "node:path";
 
 import type { DatabaseSync } from "node:sqlite";
+import { generateEmbeddingBatch } from "../src/indexer/embedder";
 
 vi.mock("../src/indexer/embedder", () => ({
   generateEmbedding: vi.fn(async () => [0.1, 0.2, 0.3]),
@@ -44,6 +45,11 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  vi.mocked(generateEmbeddingBatch).mockReset();
+  vi.mocked(generateEmbeddingBatch).mockImplementation(async (texts: string[]) =>
+    texts.map((_, index) => [index + 0.1, 0.2, 0.3])
+  );
+
   database.exec("DELETE FROM chunks; DELETE FROM files;");
 
   firstProjectRoot = await mkdtemp(
@@ -163,5 +169,56 @@ describe("indexProject stale-file reconciliation", () => {
     `).get(staleFileId) as { total: number | bigint };
 
     expect(Number(staleChunkCountAfter.total)).toBe(0);
+  });
+
+  it("limits Ollama embedding requests to eight chunks", async () => {
+    for (let index = 0; index < 9; index++) {
+      await writeFile(
+        path.join(firstProjectRoot, "src", "file-" + index + ".ts"),
+        "export function file" + index + "() { return " + index + "; }",
+        "utf8"
+      );
+    }
+
+    const result = await indexProject(firstProjectRoot);
+
+    expect(result).toEqual({ filesCount: 9, chunksCount: 9 });
+    expect(
+      vi.mocked(generateEmbeddingBatch).mock.calls.map(([texts]) => texts.length)
+    ).toEqual([8, 1]);
+  });
+
+  it("continues indexing and skips a chunk that could not be embedded", async () => {
+    await writeFile(
+      path.join(firstProjectRoot, "src", "a-good.ts"),
+      "export function goodChunk() { return 'indexed'; }",
+      "utf8"
+    );
+    await writeFile(
+      path.join(firstProjectRoot, "src", "z-skipped.ts"),
+      "export function skippedChunk() { return 'SKIP_THIS_CHUNK'; }",
+      "utf8"
+    );
+
+    vi.mocked(generateEmbeddingBatch).mockImplementation(async (texts: string[]) =>
+      texts.map((text) =>
+        text.includes("SKIP_THIS_CHUNK") ? null : [0.7, 0.8, 0.9]
+      )
+    );
+
+    const result = await indexProject(firstProjectRoot);
+
+    expect(result).toEqual({ filesCount: 2, chunksCount: 1 });
+
+    const indexedFiles = database.prepare(`
+      SELECT path
+      FROM files
+      WHERE root_path = ?
+      ORDER BY path
+    `).all(path.resolve(firstProjectRoot)) as Array<{ path: string }>;
+
+    expect(indexedFiles.map((file) => file.path)).toEqual([
+      path.join("src", "a-good.ts")
+    ]);
   });
 });
