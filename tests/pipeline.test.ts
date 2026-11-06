@@ -188,6 +188,24 @@ describe("indexProject stale-file reconciliation", () => {
     ).toEqual([8, 1]);
   });
 
+  it("passes file and language context into code chunk embeddings", async () => {
+    await writeFile(
+      path.join(firstProjectRoot, "src", "context.ts"),
+      "export function findContext() { return 'source'; }",
+      "utf8"
+    );
+
+    await indexProject(firstProjectRoot);
+
+    const embeddedTexts = vi.mocked(generateEmbeddingBatch).mock.calls
+      .flatMap(([texts]) => texts);
+    expect(embeddedTexts).toContain(
+      "File: " + path.join("src", "context.ts") +
+      " | Language: typescript\n" +
+      "export function findContext() { return 'source'; }"
+    );
+  });
+
   it("continues indexing and skips a chunk that could not be embedded", async () => {
     await writeFile(
       path.join(firstProjectRoot, "src", "a-good.ts"),

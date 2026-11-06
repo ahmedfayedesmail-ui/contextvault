@@ -65,7 +65,10 @@ describe("generateEmbeddingBatch", () => {
         },
         body: JSON.stringify({
           model: "nomic-embed-text",
-          input: ["first code chunk", "second code chunk"],
+          input: [
+            "search_document: first code chunk",
+            "search_document: second code chunk"
+          ],
           keep_alive: "30m",
           truncate: true
         }),
@@ -199,7 +202,7 @@ describe("generateEmbedding", () => {
         },
         body: JSON.stringify({
           model: "nomic-embed-text",
-          input: ["ContextVault test"],
+          input: ["search_query: ContextVault test"],
           keep_alive: "30m",
           truncate: true
         }),

@@ -9,6 +9,8 @@ const MODEL_NAME = "nomic-embed-text";
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_KEEP_ALIVE = "30m";
 
+export type EmbeddingTask = "search_document" | "search_query";
+
 interface OllamaEmbedResponse {
   model?: string;
   embeddings?: number[][];
@@ -280,7 +282,8 @@ async function requestEmbeddingBatch(
  */
 export async function generateEmbeddingBatch(
   texts: string[],
-  filePaths?: string[]
+  filePaths?: string[],
+  task: EmbeddingTask = "search_document"
 ): Promise<Array<number[] | null>> {
   if (!Array.isArray(texts) || texts.length === 0) {
     throw new Error(
@@ -314,7 +317,9 @@ export async function generateEmbeddingBatch(
     start: number,
     end: number
   ): Promise<void> => {
-    const batch = texts.slice(start, end);
+    const batch = texts
+      .slice(start, end)
+      .map((text) => task + ": " + text);
 
     try {
       const batchEmbeddings = await requestEmbeddingBatch(
@@ -362,7 +367,11 @@ export async function generateEmbeddingBatch(
 export async function generateEmbedding(
   text: string
 ): Promise<number[]> {
-  const embeddings = await generateEmbeddingBatch([text]);
+  const embeddings = await generateEmbeddingBatch(
+    [text],
+    undefined,
+    "search_query"
+  );
   const embedding = embeddings[0];
 
   if (!embedding) {

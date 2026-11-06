@@ -27,7 +27,8 @@ let cosineSimilarity: (
 
 let searchVectors: (
   queryEmbedding: number[],
-  limit?: number
+  limit?: number,
+  filter?: "all" | "code" | "docs"
 ) => SearchResult[];
 
 let saveIndexedData: (
@@ -195,6 +196,38 @@ describe("searchVectors", () => {
 
     expect(results[1].score).toBeCloseTo(0, 5);
 
+  });
+
+  it("should restrict results to code or documentation when a filter is supplied", () => {
+    const docsFile: ProjectFile = {
+      path: "README.md",
+      content: "# Project documentation",
+      mtime: new Date("2026-11-04T10:00:00.000Z"),
+      size: 24,
+      language: "markdown"
+    };
+    const docsChunk: TextChunk = {
+      filePath: "README.md",
+      content: "# Project documentation",
+      startLine: 1,
+      endLine: 1,
+      chunkIndex: 0
+    };
+
+    saveIndexedData(
+      [docsFile],
+      [docsChunk],
+      [[1, 0]],
+      "/contextvault-search-test"
+    );
+
+    const codeResults = searchVectors([1, 0], 10, "code");
+    const docsResults = searchVectors([1, 0], 10, "docs");
+    const allResults = searchVectors([1, 0], 10);
+
+    expect(codeResults.map((result) => result.filePath)).not.toContain("README.md");
+    expect(docsResults.map((result) => result.filePath)).toEqual(["README.md"]);
+    expect(allResults.map((result) => result.filePath)).toContain("README.md");
   });
 
   it("should respect the requested result limit", () => {

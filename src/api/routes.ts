@@ -332,7 +332,11 @@ const searchRequestSchema = z.object({
     .int()
     .min(1)
     .max(100)
+    .optional(),
+
+  filter: z.enum(["all", "code", "docs"])
     .optional()
+    .default("all")
 });
 
 // POST /api/scan
@@ -624,7 +628,7 @@ apiRouter.post("/search", async (req, res) => {
   const searchStartedAt = performance.now();
 
   try {
-    const { query, limit } = validation.data;
+    const { query, limit, filter } = validation.data;
 
     // Measure query embedding separately from local vector retrieval.
     const embeddingStartedAt = performance.now();
@@ -634,7 +638,7 @@ apiRouter.post("/search", async (req, res) => {
     // Vector retrieval is synchronous today; keep its timing independent so
     // profiling can show whether Ollama or local similarity search dominates.
     const vectorSearchStartedAt = performance.now();
-    const results = searchVectors(queryEmbedding, limit ?? 5);
+    const results = searchVectors(queryEmbedding, limit ?? 5, filter);
     const vectorSearchDurationMs = performance.now() - vectorSearchStartedAt;
     const totalDurationMs = performance.now() - searchStartedAt;
 

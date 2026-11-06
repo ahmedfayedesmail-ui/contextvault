@@ -14,6 +14,17 @@ export interface SearchResult {
   score: number;
 }
 
+export type SearchFilter = "all" | "code" | "docs";
+
+const DOCUMENTATION_EXTENSIONS = new Set([
+  ".md",
+  ".markdown",
+  ".mdx",
+  ".rst",
+  ".txt",
+  ".adoc"
+]);
+
 // Ensure the embeddings BLOB column exists.
 
 interface TableColumn {
@@ -436,7 +447,8 @@ interface StoredVectorRow {
 
 export function searchVectors(
   queryEmbedding: number[],
-  limit: number = 5
+  limit: number = 5,
+  filter: SearchFilter = "all"
 ): SearchResult[] {
 
   if (
@@ -474,6 +486,17 @@ export function searchVectors(
   const results: SearchResult[] = [];
 
   for (const row of rows) {
+    const extension = path.extname(row.filePath).toLowerCase();
+    const isDocumentation = DOCUMENTATION_EXTENSIONS.has(extension);
+
+    if (filter === "code" && isDocumentation) {
+      continue;
+    }
+
+    if (filter === "docs" && !isDocumentation) {
+      continue;
+    }
+
     const storedEmbedding = decodeEmbedding(
       row.embedding
     );

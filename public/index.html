@@ -322,6 +322,40 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 
 .search-box input::placeholder { color: #777777; opacity: 1; }
 
+.search-filter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--cv-border);
+  border-radius: 999px;
+  background: #090909;
+}
+
+.search-filter-button {
+  min-height: 27px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cv-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.search-filter-button.is-active {
+  border-color: #4f4f4f;
+  background: #242424;
+  color: var(--cv-text);
+}
+
+.search-filter-button:focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 2px;
+}
+
 .search-actions {
   display: inline-flex;
   flex: 0 0 auto;
@@ -816,6 +850,7 @@ footer {
   .stat-pill strong { font-size: 10px; }
   .search-box { min-height: 0; flex-wrap: wrap; padding: 8px; }
   .search-box input { flex: 1 1 calc(100% - 34px); min-height: 36px; }
+  .search-filter { margin-left: 28px; }
   .search-actions { width: 100%; justify-content: space-between; padding-left: 28px; }
   .search-button { flex: 1 1 auto; }
   .search-helper { flex-direction: column; gap: 4px; }
@@ -886,6 +921,26 @@ footer {
                   autocomplete="off"
                   required
                 >
+                <div class="search-filter" role="group" aria-label="Search file types">
+                  <button
+                    class="search-filter-button is-active"
+                    type="button"
+                    data-search-filter="all"
+                    aria-pressed="true"
+                  >All</button>
+                  <button
+                    class="search-filter-button"
+                    type="button"
+                    data-search-filter="code"
+                    aria-pressed="false"
+                  >Code</button>
+                  <button
+                    class="search-filter-button"
+                    type="button"
+                    data-search-filter="docs"
+                    aria-pressed="false"
+                  >Docs</button>
+                </div>
                 <div class="search-actions">
                   <span class="shortcut-hint"><kbd>/</kbd> to focus</span>
                   <button id="search-button" class="search-button" type="submit">Search</button>
@@ -1097,6 +1152,23 @@ footer {
     const form = document.getElementById("search-form");
 
     const input = document.getElementById("search-input");
+
+    const searchFilterButtons = [
+      ...document.querySelectorAll(".search-filter-button")
+    ];
+    let activeSearchFilter = "all";
+
+    searchFilterButtons.forEach((filterButton) => {
+      filterButton.addEventListener("click", () => {
+        activeSearchFilter = filterButton.dataset.searchFilter || "all";
+
+        searchFilterButtons.forEach((candidate) => {
+          const isActive = candidate === filterButton;
+          candidate.classList.toggle("is-active", isActive);
+          candidate.setAttribute("aria-pressed", String(isActive));
+        });
+      });
+    });
 
     const button = document.getElementById("search-button");
 
@@ -1717,7 +1789,8 @@ footer {
 
           body: JSON.stringify({
             query,
-            limit: 5
+            limit: 5,
+            filter: activeSearchFilter
           })
         });
 
