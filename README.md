@@ -12,7 +12,7 @@
     <img src="https://img.shields.io/badge/Integration-MCP-6750A4" alt="MCP integration" />
     <a href="https://github.com/ahmedfayedesmail-ui/contextvault/stargazers"><img src="https://img.shields.io/github/stars/ahmedfayedesmail-ui/contextvault?style=flat&logo=github" alt="GitHub stars" /></a>
     <a href="https://github.com/ahmedfayedesmail-ui/contextvault/network/members"><img src="https://img.shields.io/github/forks/ahmedfayedesmail-ui/contextvault?style=flat&logo=github" alt="GitHub forks" /></a>
-    <img src="https://img.shields.io/badge/version-1.2.0-8b7cff" alt="Version 1.2.0" />
+    <img src="https://img.shields.io/badge/version-1.3.0-8b7cff" alt="Version 1.3.0" />
   </p>
 
   <p>
