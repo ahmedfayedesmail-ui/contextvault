@@ -126,6 +126,7 @@ Searches the local index using natural language.
 
 - Required input: `query` — the search question.
 - Optional input: `limit` — maximum result count (1–100; default 5).
+- Optional input: `filter` — `code`, `docs`, or `all`; defaults to `code`.
 
 A good first test after indexing is: “Use ContextVault to find where authentication requests are validated. Show the matching file paths and relevant snippets returned by the search.”
 
@@ -154,7 +155,7 @@ Embedding requests keep the model loaded for 30 minutes by default. The request 
 | `OLLAMA_EMBED_TIMEOUT_MS` | `120000` | Maximum time to wait for one embedding request. Values below 1000 are ignored. |
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama API base URL. |
 
-ContextVault logs the wall-clock embedding duration for every successful request. When Ollama returns timing metadata, the log also includes model-load and total server time. Timeout and HTTP errors are logged with elapsed time and a clear error message. During project indexing, ContextVault sends chunks to Ollama in batches of up to 16 texts per `/api/embed` request, preserving atomic persistence per file. Search profiling separately logs embedding duration and local vector-search duration for both the HTTP search route and the MCP `search_context` tool. Diagnostics are persisted to `embedding.log` under `%LOCALAPPDATA%\\ContextVault\\logs` on Windows, `~/Library/Logs/ContextVault` on macOS, or `~/.local/state/contextvault/logs` on Linux. Set `CONTEXTVAULT_LOG_DIR` to override the log directory. Use these logs to distinguish model-load delay from ongoing embedding latency; warm-up may reduce cold-start delay but does not guarantee a fixed search time on every computer.
+ContextVault logs the wall-clock embedding duration for every successful request. When Ollama returns timing metadata, the log also includes model-load and total server time. Timeout and HTTP errors are logged with elapsed time and a clear error message. During project indexing, ContextVault sends chunks to Ollama in batches of up to 8 texts per `/api/embed` request, preserving atomic persistence per file. Search profiling separately logs embedding duration and local vector-search duration for both the HTTP search route and the MCP `search_context` tool. Diagnostics are persisted to `embedding.log` under `%LOCALAPPDATA%\\ContextVault\\logs` on Windows, `~/Library/Logs/ContextVault` on macOS, or `~/.local/state/contextvault/logs` on Linux. Set `CONTEXTVAULT_LOG_DIR` to override the log directory. Use these logs to distinguish model-load delay from ongoing embedding latency; warm-up may reduce cold-start delay but does not guarantee a fixed search time on every computer.
 
 ## Troubleshooting
 

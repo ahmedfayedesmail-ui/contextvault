@@ -14,7 +14,7 @@ import { MCP_PRO_ONLY_MESSAGE } from "./billing/entitlements";
 import { searchVectors } from "./storage/vectors";
 
 const SERVER_NAME = "contextvault";
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.3.0";
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error

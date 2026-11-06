@@ -2,13 +2,31 @@
 
 All notable ContextVault changes are documented here by release or development session.
 
+## v1.3.0 — 2026-11-06
+
+### Added
+- Enforced Free plan limits: one indexed project root at a time and up to 1,000 eligible files per project.
+- Required a verified Pro license for both MCP tools, MCP configuration access, and Live Monitoring.
+- Added a Free / Pro plan comparison in Settings, verified license refresh, and automatic watcher shutdown when downgrading to Free.
+- Added API and indexing-pipeline safeguards for the Free file limit, including checks before indexing is accepted and after scanning.
+
+### Validation coverage
+- Added automated tests for the 1,000-file boundary, preservation of existing index data on rejected oversized indexing, MCP Pro-only access, Live Monitoring entitlement enforcement, and verified Pro access.
+- GitHub Actions CI is required to pass on both Ubuntu and Windows for the final release commit before tagging.
+
+### Manual validation still tracked
+- The full clean-machine Windows installation matrix (winget and manual Ollama fallback) remains pending.
+- Manual stale-file rename/delete regression and repeated embedding-latency profiling remain pending; see `TESTING.md`.
+
+---
+
 ## v1.2.0 — 2026-11-06
 
 ### Added
 - Rebuilt the dashboard with a restrained, high-contrast Linear/Vercel-inspired workspace, responsive project panel, compact index statistics, and focused semantic search.
 - Added project-root ownership to indexed file records and project-scoped file identity using `(root_path, path)`.
 - Added stale-file reconciliation after a successful project indexing pass, preserving the last completed index if embedding fails.
-- Added Ollama embedding batching (up to 16 chunks per request), background model warm-up, a 30-minute default keep-alive, configurable request timeout, and persistent embedding diagnostics.
+- Added Ollama embedding batching (up to 8 chunks per request), background model warm-up, a 30-minute default keep-alive, configurable request timeout, and persistent embedding diagnostics.
 - Added separate embedding, vector-search, and total handler timing diagnostics for HTTP and MCP search.
 - Hardened Windows installation and launch flows with staged progress, managed Node.js runtime reuse, winget-first Ollama installation with a manual fallback, IPv4 loopback checks, bounded Ollama startup recovery, and safer port-owner handling.
 
@@ -23,7 +41,6 @@ All notable ContextVault changes are documented here by release or development s
 - The detailed embedding warm-up, model-load, vector-search, and repeated-search profiling session was deferred because the test laptop became overloaded and network connectivity was unstable.
 - The stale-file rename/delete regression scenarios have not yet been run manually.
 - Clean-machine winget and manual-fallback scenarios have not both been completed.
-- The current CI check history on the PR contains failed and cancelled jobs. No new tests or CI runs were initiated for this release decision.
 
 ### Release note on performance claims
 The observed 229 ms MCP call is recorded as a single environment-specific measurement. It must not be described as "100x faster" or as a benchmark until comparable baseline and post-change measurements are collected under controlled conditions.
