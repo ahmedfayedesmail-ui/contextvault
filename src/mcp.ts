@@ -7,6 +7,9 @@ import { performance } from "node:perf_hooks";
 
 import { generateEmbedding, warmupEmbeddingModel } from "./indexer/embedder";
 import { indexProject } from "./indexer/pipeline";
+import path from "node:path";
+
+import { getLicense, hasIndexedProjectOtherThan } from "./storage/db";
 import { searchVectors } from "./storage/vectors";
 
 const SERVER_NAME = "contextvault";
@@ -97,8 +100,25 @@ export function createContextVaultMcpServer(): McpServer {
       }
     },
     async ({ rootPath }) => {
+      const normalizedRoot = path.resolve(rootPath);
+
+      if (
+        getLicense() !== "Pro" &&
+        hasIndexedProjectOtherThan(normalizedRoot)
+      ) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: "Free plan is limited to one project. Please upgrade to Pro or clear your current index."
+            }
+          ]
+        };
+      }
+
       try {
-        const result = await indexProject(rootPath);
+        const result = await indexProject(normalizedRoot);
 
         return {
           content: [
@@ -108,7 +128,7 @@ export function createContextVaultMcpServer(): McpServer {
                 {
                   success: true,
                   message: "Project indexing completed successfully.",
-                  rootPath,
+                  rootPath: normalizedRoot,
                   filesCount: result.filesCount,
                   chunksCount: result.chunksCount
                 },
