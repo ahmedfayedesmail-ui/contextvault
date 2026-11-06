@@ -2,6 +2,10 @@ import { Worker } from "node:worker_threads";
 import path from "node:path";
 
 import { resolvedDatabasePath } from "../storage/db";
+import {
+  generateEmbeddingBatch,
+  type EmbeddingTask
+} from "./embedder";
 import type {
   IndexProjectProgress,
   IndexProjectResult
@@ -12,10 +16,39 @@ export type IndexProgressHandler = (
 ) => void;
 
 interface WorkerMessage {
-  type: "progress" | "completed" | "failed";
+  type: "progress" | "completed" | "failed" | "embedding-request";
   progress?: IndexProjectProgress;
   result?: IndexProjectResult;
   error?: string;
+  requestId?: string;
+  texts?: string[];
+  filePaths?: string[];
+  task?: EmbeddingTask;
+}
+
+interface WorkerEmbeddingResponse {
+  type: "embedding-response";
+  requestId: string;
+  embeddings?: Array<number[] | null>;
+  error?: string;
+  statusCode?: number;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorStatusCode(error: unknown): number | undefined {
+  if (
+    error &&
+    typeof error === "object" &&
+    "statusCode" in error &&
+    typeof error.statusCode === "number"
+  ) {
+    return error.statusCode;
+  }
+
+  return undefined;
 }
 
 function getWorkerEntryPath(): string {
@@ -61,6 +94,36 @@ export async function runIndexInWorker(
     };
 
     worker.on("message", (message: WorkerMessage) => {
+      if (
+        message.type === "embedding-request" &&
+        message.requestId &&
+        Array.isArray(message.texts)
+      ) {
+        void generateEmbeddingBatch(
+          message.texts,
+          message.filePaths,
+          message.task ?? "search_document"
+        )
+          .then((embeddings) => {
+            const response: WorkerEmbeddingResponse = {
+              type: "embedding-response",
+              requestId: message.requestId!,
+              embeddings
+            };
+            worker.postMessage(response);
+          })
+          .catch((error: unknown) => {
+            const response: WorkerEmbeddingResponse = {
+              type: "embedding-response",
+              requestId: message.requestId!,
+              error: getErrorMessage(error),
+              statusCode: getErrorStatusCode(error)
+            };
+            worker.postMessage(response);
+          });
+        return;
+      }
+
       if (message.type === "progress" && message.progress) {
         onProgress?.(message.progress);
         return;

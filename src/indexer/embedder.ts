@@ -4,12 +4,89 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import {
+  isMainThread,
+  parentPort,
+  threadId
+} from "node:worker_threads";
 
 const MODEL_NAME = "nomic-embed-text";
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_KEEP_ALIVE = "30m";
 
 export type EmbeddingTask = "search_document" | "search_query";
+
+interface EmbeddingBrokerResponse {
+  type: "embedding-response";
+  requestId: string;
+  embeddings?: Array<number[] | null>;
+  error?: string;
+  statusCode?: number;
+}
+
+interface PendingEmbeddingRequest {
+  resolve: (embeddings: Array<number[] | null>) => void;
+  reject: (error: Error) => void;
+}
+
+const pendingEmbeddingRequests = new Map<string, PendingEmbeddingRequest>();
+let nextEmbeddingRequestId = 0;
+
+if (!isMainThread && parentPort) {
+  parentPort.on("message", (message: EmbeddingBrokerResponse) => {
+    if (
+      !message ||
+      message.type !== "embedding-response" ||
+      typeof message.requestId !== "string"
+    ) {
+      return;
+    }
+
+    const pending = pendingEmbeddingRequests.get(message.requestId);
+    if (!pending) {
+      return;
+    }
+
+    pendingEmbeddingRequests.delete(message.requestId);
+
+    if (message.error) {
+      const error = new Error(message.error) as Error & { statusCode?: number };
+      if (message.statusCode !== undefined) {
+        error.statusCode = message.statusCode;
+      }
+      pending.reject(error);
+      return;
+    }
+
+    pending.resolve(message.embeddings ?? []);
+  });
+}
+
+function requestEmbeddingBatchFromParent(
+  texts: string[],
+  filePaths: string[] | undefined,
+  task: EmbeddingTask
+): Promise<Array<number[] | null>> {
+  if (!parentPort) {
+    return Promise.reject(
+      new Error("The embedding worker has no parent message port.")
+    );
+  }
+
+  const requestId = threadId + ":" + (++nextEmbeddingRequestId);
+
+  return new Promise((resolve, reject) => {
+    pendingEmbeddingRequests.set(requestId, { resolve, reject });
+
+    parentPort.postMessage({
+      type: "embedding-request",
+      requestId,
+      texts,
+      filePaths,
+      task
+    });
+  });
+}
 
 interface OllamaEmbedResponse {
   model?: string;
@@ -301,6 +378,13 @@ export async function generateEmbeddingBatch(
     throw new Error(
       "Cannot generate embeddings: filePaths must match the number of input texts."
     );
+  }
+
+  // Workers delegate Ollama access to the main thread. This keeps all
+  // application embedding traffic behind one broker/queue rather than
+  // opening an independent Ollama request stream per worker.
+  if (!isMainThread && parentPort) {
+    return requestEmbeddingBatchFromParent(texts, filePaths, task);
   }
 
   const baseUrl = (
