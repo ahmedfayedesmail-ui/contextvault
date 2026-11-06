@@ -169,6 +169,18 @@ export function getLicense(): LicenseType {
     : "Free";
 }
 
+export function hasIndexedProjectOtherThan(rootPath: string): boolean {
+  const normalizedRoot = path.resolve(rootPath);
+  const row = database.prepare(`
+    SELECT 1 AS found
+    FROM files
+    WHERE root_path <> '' AND root_path <> ?
+    LIMIT 1
+  `).get(normalizedRoot);
+
+  return row !== undefined;
+}
+
 export function setLicense(license: LicenseType): LicenseType {
   database.prepare(`
     INSERT INTO settings (key, value)
