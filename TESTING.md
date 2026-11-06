@@ -1,10 +1,10 @@
 # ContextVault — Comprehensive Testing Guide
 
-**Target:** PR #1 / ContextVault v1.2.0 work  
-**Scope:** Windows 10 22H2 or Windows 11, followed by one MCP indexing/search run and an embedding-latency measurement.  
-**Status:** This is a test plan. The checks below have **not** been run against a clean Windows machine yet.
+**Target:** ContextVault v1.3.0 release validation  
+**Scope:** Windows 10 22H2 or Windows 11, followed by local MCP indexing/search, entitlement checks, and embedding-latency measurements.  
+**Status:** GitHub Actions CI passed on Ubuntu and Windows for the v1.3.0 release-candidate source. The clean-machine installation, local MCP end-to-end, and latency checks below remain manual validation tasks; they are not claimed as completed.
 
-Run the sections in order in one planned test session. Use a disposable Windows VM or spare test computer. Do not uninstall Node.js or Ollama from a daily-use computer just to create a clean test. Project indexing in this branch sends up to 16 chunks per Ollama embedding request. Chunks are pooled across file boundaries where possible, and each file is still persisted atomically after all its chunks are embedded.
+Run the sections in order in one planned test session. Use a disposable Windows VM or spare test computer. Do not uninstall Node.js or Ollama from a daily-use computer just to create a clean test. Project indexing in the current main branch sends up to 8 chunks per Ollama embedding request. Chunks are pooled across file boundaries where possible, and each file is still persisted atomically after all its chunks are embedded.
 
 ## 1. Before starting
 
@@ -23,7 +23,7 @@ Run the sections in order in one planned test session. Use a disposable Windows 
 
 5. Download the PR branch ZIP (not the default `main` branch) so the test includes the changes under review:
 
-   [Download the PR #1 branch ZIP](https://github.com/ahmedfayedesmail-ui/contextvault/archive/refs/heads/fix/contextvault-performance-installer-onboarding-2026-11-05.zip)
+   [Download the current main branch ZIP](https://github.com/ahmedfayedesmail-ui/contextvault/archive/refs/heads/main.zip)
 
 6. Extract the ZIP. Open the extracted project root — the folder containing `package.json`, `install-contextvault.ps1`, and `start-contextvault.ps1`.
 
@@ -116,7 +116,7 @@ Record which path ran in the final report. A successful fallback handoff is a pa
 - Uses `winget install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements` as the primary installation path, with package-manager output visible in the console.
 - If winget is unavailable or fails, opens the official Ollama Windows download page, prints the exact manual-install/re-run instruction, waits only for the user to acknowledge the visible message, exits with code `0`, and does not wait on a hidden download.
 
-**Validation status:** This is an implementation change, not a verified resolution yet. Re-run Scenario A and Scenario B in a clean disposable environment and keep PR #1 in Draft until both paths and the full installation flow have passed.
+**Validation status:** This is an implementation change, not a verified resolution yet. Re-run Scenario A and Scenario B in a clean disposable environment and keep the release marked as not fully installation-validated until both paths and the full installation flow have passed.
 
 ### Ollama API startup and loopback checks
 
@@ -131,7 +131,7 @@ Record which path ran in the final report. A successful fallback handoff is a pa
 - Apply the same API check and launch behavior in `start-contextvault.ps1`; `start-contextvault.bat` delegates to that PowerShell launcher and sets the same `OLLAMA_HOST`.
 - Optional per-user startup registration is opt-in only: run `install-contextvault.ps1 -EnableOllamaStartup`. The default installer does not add Ollama to Windows startup.
 
-**Validation status:** These changes are not yet proven on Windows. The installer and launcher must be re-tested in Sandbox before PR #1 can be considered ready.
+**Validation status:** These changes are not yet proven on Windows. The installer and launcher must be re-tested in Sandbox before the Windows installation flow can be considered manually validated.
 
 ### Additional Ollama startup tests
 
@@ -308,10 +308,10 @@ The purpose of this section is to determine whether the original 15.6-second Ins
 For project indexing, batched requests should contain a line similar to:
 
    ```text
-   [ContextVault] Embedding batch completed (items=16) in 1,250.0ms (model=nomic-embed-text, model_load=0.0ms, ollama_total=1,200.0ms, keep_alive=30m).
+   [ContextVault] Embedding batch completed (items=8) in 1,250.0ms (model=nomic-embed-text, model_load=0.0ms, ollama_total=1,200.0ms, keep_alive=30m).
    ```
 
-   The final batch for a file may contain fewer than 16 items. Batch size is currently 16 chunks per request. The numbers above are illustrative only.
+   The final batch for a file may contain fewer than 8 items. Batch size is currently 8 chunks per request. The numbers above are illustrative only.
 
 
 6. Record these values for the warm-up and each of the three searches:
@@ -392,4 +392,4 @@ Copy this section into the review when all checks have been run:
 
 ---
 
-**Current status:** no fresh-install, MCP Inspector indexing, or post-warm-up latency test is claimed as completed by this guide. Keep PR #1 in Draft until the full test session has been reviewed.
+**Current status:** no fresh-install, MCP Inspector indexing, or post-warm-up latency test is claimed as completed by this guide. Do not describe the release as fully end-to-end validated until the full test session has been reviewed.
