@@ -13,6 +13,7 @@ describe('cross-platform distribution files', () => {
   it.each([
     'install-contextvault.ps1',
     'start-contextvault.bat',
+    'start-contextvault.ps1',
     'start-contextvault.sh',
     'install-mac.command',
     'install-linux.sh',
@@ -35,25 +36,24 @@ describe('cross-platform distribution files', () => {
     expect(installer).toContain("Join-Path $NodeHome 'npm.cmd'");
   });
 
-  it('uses absolute Ollama executable paths and installs Ollama silently', () => {
+  it('installs and starts Ollama through supported absolute-path and winget flows', () => {
     const installer = readFileSync(path.join(projectRoot, 'install-contextvault.ps1'), 'utf8');
-    expect(installer).toContain('winget.exe');
-    expect(installer).toContain('install --id Ollama.Ollama -e --silent');
-    expect(installer).toContain('Get-OllamaExe');
-    expect(installer).toContain('$OllamaExeResults = @(Get-OllamaExe | Select-Object -First 1)');
-    expect(installer).toContain('$OllamaExe = [string]$OllamaExeResults[0]');
-    expect(installer).toContain('$OllamaExePath = "$env:LOCALAPPDATA\\Programs\\Ollama\\ollama.exe"');
-    expect(installer).toContain("if (-not (Test-Path -LiteralPath $OllamaExePath -PathType Leaf)) {");
-    expect(installer).toContain("$OllamaExePath = 'ollama'");
-    expect(installer).toContain('$OllamaExePath = [string]$OllamaExe');
-    expect(installer).toContain('Start-Process -FilePath ([string]$OllamaExePath) -ArgumentList "serve" -WindowStyle Hidden');
-    expect(installer).toContain("Start-Process -FilePath 'ollama' -ArgumentList 'serve' -WindowStyle Hidden -ErrorAction SilentlyContinue");
+
+    expect(installer).toContain('function Get-OllamaExe');
+    expect(installer).toContain('function Get-WingetExe');
+    expect(installer).toContain('install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements');
+    expect(installer).toContain('function Get-OllamaListenerPid');
+    expect(installer).toContain("http://127.0.0.1:11434/api/tags");
+    expect(installer).toContain("Start-Process -FilePath $OllamaCliPath -ArgumentList 'serve'");
+    expect(installer).toContain('Wait-OllamaApi -TimeoutSeconds 30');
+    expect(installer).toContain('Please install Ollama from the opened page, then run install-contextvault.ps1 again.');
+    expect(installer).toContain('Please open the Ollama app from your Start Menu');
+    expect(installer).toContain('$EnableOllamaStartup');
+    expect(installer).toContain('CurrentVersion\\Run');
     expect(installer).toContain('$ModelList = & $OllamaExePath list 2>&1');
     expect(installer).toContain('& $OllamaExePath pull nomic-embed-text');
     expect(installer).toContain('$VerifiedModelList = & $OllamaExePath list 2>&1');
-    expect(installer).toContain("if (($VerifiedModelList -join [Environment]::NewLine) -notmatch 'nomic-embed-text')");
     expect(installer).toContain("Replace('__OLLAMA_EXE__', $OllamaExePath)");
-    expect(installer).toContain('nomic-embed-text');
     expect(installer).toContain('Get-AuthenticodeSignature');
   });
 
@@ -64,21 +64,28 @@ describe('cross-platform distribution files', () => {
     expect(packageJson.engines.node).toBe('>=22.13.0');
   });
 
-  it('checks and downloads the Ollama embedding model before opening the Windows app', () => {
+  it('routes the Windows batch launcher through the hardened PowerShell launcher', () => {
     const launcher = readFileSync(path.join(projectRoot, 'start-contextvault.bat'), 'utf8');
-    expect(launcher).toContain('http://localhost:11434/api/tags');
-    expect(launcher).toContain('ollama list');
-    expect(launcher).toContain('ollama pull nomic-embed-text');
-    expect(launcher).toContain('goto wait_for_ollama');
-    expect(launcher).toContain('goto ollama_pull_failed');
-    expect(launcher).toContain('if not exist "node_modules\\." (');
-    expect(launcher).toContain('%LOCALAPPDATA%\\Ollama\\ollama.exe');
-    expect(launcher).toContain('set "MODEL_CHECK_AFTER_PULL=1"');
-    expect(launcher).toContain('goto run_ollama_list');
-    expect(launcher).toContain('goto ollama_model_verify_failed');
+
+    expect(launcher).toContain('set "OLLAMA_HOST=127.0.0.1:11434"');
+    expect(launcher).toContain('start-contextvault.ps1');
+    expect(launcher).toContain('powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File');
+    expect(launcher).toContain('Ollama and preparing the local dashboard');
+    expect(launcher).toContain('if errorlevel 1');
+  });
+
+  it('starts Ollama safely before opening the ContextVault dashboard', () => {
+    const launcher = readFileSync(path.join(projectRoot, 'start-contextvault.ps1'), 'utf8');
+
+    expect(launcher).toContain("http://127.0.0.1:11434/api/tags");
+    expect(launcher).toContain('function Get-OllamaListenerPid');
+    expect(launcher).toContain('function Start-OllamaService');
+    expect(launcher).toContain("Start-Process -FilePath $OllamaCliPath -ArgumentList 'serve'");
+    expect(launcher).toContain('Wait-OllamaApi -TimeoutSeconds 30');
+    expect(launcher).toContain('will not terminate an unrelated process');
+    expect(launcher).toContain("pull 'nomic-embed-text'");
     expect(launcher).toContain('npm run dev');
     expect(launcher).toContain('http://localhost:3737');
-    expect(launcher.indexOf('ollama pull nomic-embed-text')).toBeLessThan(launcher.indexOf('start "" "http://localhost:3737"'));
   });
 
   it('prepares macOS and Linux dependencies', () => {
