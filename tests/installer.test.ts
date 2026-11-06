@@ -54,7 +54,10 @@ describe('cross-platform distribution files', () => {
     expect(installer).toContain('& $OllamaExePath pull nomic-embed-text');
     expect(installer).toContain('$VerifiedModelList = & $OllamaExePath list 2>&1');
     expect(installer).toContain("Replace('__OLLAMA_EXE__', $OllamaExePath)");
-    expect(installer).toContain('Get-AuthenticodeSignature');
+    // Ollama is installed through winget; if winget is unavailable, the
+    // installer opens Ollama's official Windows download page for manual setup.
+    expect(installer).toContain("$OllamaDownloadUrl = 'https://ollama.com/download/windows'");
+    expect(installer).toContain('Start-Process -FilePath $OllamaDownloadUrl');
   });
 
   it('matches the supported Node.js engine range', () => {
