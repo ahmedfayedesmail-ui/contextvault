@@ -7,6 +7,7 @@ import {
 } from "vitest";
 
 import { createServer, type Server } from "node:http";
+import { once } from "node:events";
 import request from "supertest";
 import type { Express } from "express";
 import type { DatabaseSync } from "node:sqlite";
