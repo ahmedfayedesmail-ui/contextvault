@@ -163,6 +163,40 @@ describe("Project Scanner", () => {
     expect(appFile?.size).toBeGreaterThan(0);
   });
 
+  it("should add file and language context to code embeddings without changing the source snippet", () => {
+    const content = "export function hello() { return 'world'; }";
+    const file: ProjectFile = {
+      path: path.join("src", "app.ts"),
+      content,
+      mtime: new Date(),
+      size: Buffer.byteLength(content, "utf8"),
+      language: "typescript"
+    };
+
+    const [chunk] = chunkFile(file);
+
+    expect(chunk?.content).toBe(content);
+    expect(chunk?.embeddingText).toBe(
+      "File: " + path.join("src", "app.ts") +
+      " | Language: typescript\n" + content
+    );
+  });
+
+  it("should not add code context metadata to Markdown chunks", () => {
+    const file: ProjectFile = {
+      path: "README.md",
+      content: "# ContextVault",
+      mtime: new Date(),
+      size: 13,
+      language: "markdown"
+    };
+
+    const [chunk] = chunkFile(file);
+
+    expect(chunk?.content).toBe("# ContextVault");
+    expect(chunk?.embeddingText).toBeUndefined();
+  });
+
   it("should split a 10KB file into four chunks", () => {
     const content = "a".repeat(10 * 1024);
 

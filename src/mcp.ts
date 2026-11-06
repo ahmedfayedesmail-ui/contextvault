@@ -35,10 +35,11 @@ export function createContextVaultMcpServer(): McpServer {
         "Search locally indexed project code and return the most relevant matching chunks.",
       inputSchema: {
         query: z.string().trim().min(1).describe("Natural-language query about the indexed project."),
-        limit: z.number().int().min(1).max(100).optional().describe("Maximum number of matching chunks to return. Defaults to 5.")
+        limit: z.number().int().min(1).max(100).optional().describe("Maximum number of matching chunks to return. Defaults to 5."),
+        filter: z.enum(["all", "code", "docs"]).optional().describe("File scope. Defaults to code so agents retrieve source rather than documentation.")
       }
     },
-    async ({ query, limit }) => {
+    async ({ query, limit, filter }) => {
       const searchStartedAt = performance.now();
 
       try {
@@ -47,7 +48,12 @@ export function createContextVaultMcpServer(): McpServer {
         const embeddingDurationMs = performance.now() - embeddingStartedAt;
 
         const vectorSearchStartedAt = performance.now();
-        const results = searchVectors(queryEmbedding, limit ?? 5);
+        const effectiveFilter = filter ?? "code";
+        const results = searchVectors(
+          queryEmbedding,
+          limit ?? 5,
+          effectiveFilter
+        );
         const vectorSearchDurationMs = performance.now() - vectorSearchStartedAt;
         const totalDurationMs = performance.now() - searchStartedAt;
 
@@ -66,6 +72,7 @@ export function createContextVaultMcpServer(): McpServer {
                 {
                   success: true,
                   query,
+                  filter: effectiveFilter,
                   resultsCount: results.length,
                   results
                 },

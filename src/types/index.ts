@@ -14,6 +14,8 @@ export interface ProjectFile {
 export interface TextChunk {
   filePath: string;
   content: string;
+  /** Enriched text used only to generate the embedding; source content stays unchanged. */
+  embeddingText?: string;
   startLine: number;
   endLine: number;
   chunkIndex: number;

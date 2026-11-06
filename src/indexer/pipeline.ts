@@ -54,7 +54,7 @@ async function embedChunksInBatches(
     );
 
     const batchResults = await generateEmbeddingBatch(
-      batch.map((chunk) => chunk.content),
+      batch.map((chunk) => chunk.embeddingText ?? chunk.content),
       batch.map((chunk) => chunk.filePath)
     );
 
@@ -199,7 +199,7 @@ export async function indexProject(
     );
 
     const batchResults = await generateEmbeddingBatch(
-      batch.map((item) => item.chunk.content),
+      batch.map((item) => item.chunk.embeddingText ?? item.chunk.content),
       batch.map((item) => item.chunk.filePath)
     );
 

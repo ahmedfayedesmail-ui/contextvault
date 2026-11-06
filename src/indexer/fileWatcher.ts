@@ -25,6 +25,11 @@ import type {
 const CHUNK_SIZE_CHARS = 3200;
 const CHUNK_OVERLAP_CHARS = 400;
 const WATCH_DEBOUNCE_MS = 500;
+const EMBEDDING_CONTEXT_LANGUAGES = new Set([
+  "typescript",
+  "javascript",
+  "python"
+]);
 
 const LANGUAGE_MAP: Record<string, string> = {
   ".ts": "typescript",
@@ -320,6 +325,13 @@ export function chunkFile(
       chunks.push({
         filePath: file.path,
         content: chunkContent,
+        ...(EMBEDDING_CONTEXT_LANGUAGES.has(file.language)
+          ? {
+              embeddingText:
+                `File: ${file.path} | Language: ${file.language}\n` +
+                chunkContent
+            }
+          : {}),
         startLine: getLineNumber(absoluteStart),
         endLine: getLineNumber(
           Math.max(absoluteStart, absoluteEnd - 1)
