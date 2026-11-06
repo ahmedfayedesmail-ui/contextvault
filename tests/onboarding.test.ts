@@ -31,7 +31,12 @@ vi.mock("../src/indexer/embedder", () => ({
       setTimeout(resolve, 20);
     });
     return texts.map(() => [0.1, 0.2, 0.3]);
-  })
+  }),
+  getEmbeddingQueueStats: vi.fn(() => ({
+    active: 0,
+    pending: 0,
+    capacity: 10
+  }))
 }));
 
 let database: DatabaseSync;

@@ -18,7 +18,10 @@ import { indexProject } from "../indexer/pipeline";
 
 import { startLiveWatcher, stopLiveWatcher } from "../indexer/liveWatcher";
 
-import { generateEmbedding } from "../indexer/embedder";
+import {
+  generateEmbedding,
+  getEmbeddingQueueStats
+} from "../indexer/embedder";
 
 import { clearIndexedData, searchVectors } from "../storage/vectors";
 
@@ -419,6 +422,15 @@ apiRouter.post("/index", async (req, res) => {
     });
   }
 
+  const embeddingQueue = getEmbeddingQueueStats();
+  if (embeddingQueue.pending >= embeddingQueue.capacity) {
+    res.setHeader("Retry-After", "1");
+    return res.status(429).json({
+      error: "Too many embedding requests",
+      message: "The local embedding queue is full. Retry shortly."
+    });
+  }
+
   if (activeIndexJobId) {
     const activeJob = indexJobs.get(activeIndexJobId);
 
@@ -653,6 +665,21 @@ apiRouter.post("/search", async (req, res) => {
     });
 
   } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "statusCode" in error &&
+      error.statusCode === 429
+    ) {
+      res.setHeader("Retry-After", "1");
+      return res.status(429).json({
+        error: "Too many embedding requests",
+        message: error instanceof Error
+          ? error.message
+          : "The local embedding queue is full. Retry shortly."
+      });
+    }
+
     console.error(
       "[ContextVault] Search failed:",
       error
