@@ -1,6 +1,12 @@
 name: Publish ContextVault v1.3.0
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release-v1.3.0.yml"
+      - ".github/releases/v1.3.0.md"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate release metadata, CI, and tag availability
+      - name: Validate metadata, wait for CI, and check tag availability
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -40,6 +46,40 @@ jobs:
             exit 1
           fi
 
+          echo "Waiting for Ubuntu and Windows CI checks on $GITHUB_SHA..."
+          ci_passed=false
+
+          for attempt in $(seq 1 90); do
+            check_json="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs")"
+
+            ubuntu_status="$(jq -r '[.check_runs[] | select(.name == "test (ubuntu-latest)")] | sort_by(.id) | if length == 0 then "missing" else (last.status + ":" + (last.conclusion // "")) end' <<< "$check_json")"
+            windows_status="$(jq -r '[.check_runs[] | select(.name == "test (windows-latest)")] | sort_by(.id) | if length == 0 then "missing" else (last.status + ":" + (last.conclusion // "")) end' <<< "$check_json")"
+
+            echo "CI poll $attempt: Ubuntu=$ubuntu_status; Windows=$windows_status"
+
+            if [[ "$ubuntu_status" == "completed:success" && "$windows_status" == "completed:success" ]]; then
+              ci_passed=true
+              break
+            fi
+
+            if [[ "$ubuntu_status" == completed:* && "$ubuntu_status" != "completed:success" ]]; then
+              echo "::error::Ubuntu CI did not pass: $ubuntu_status"
+              exit 1
+            fi
+
+            if [[ "$windows_status" == completed:* && "$windows_status" != "completed:success" ]]; then
+              echo "::error::Windows CI did not pass: $windows_status"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          if [[ "$ci_passed" != "true" ]]; then
+            echo "::error::Timed out waiting for both platform CI checks to pass."
+            exit 1
+          fi
+
           if git ls-remote --exit-code --tags origin refs/tags/v1.3.0 >/dev/null 2>&1; then
             echo "::error::Tag v1.3.0 already exists. Refusing to overwrite or retarget it."
             exit 1
@@ -50,14 +90,7 @@ jobs:
             exit 1
           fi
 
-          passing_checks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" --jq '[.check_runs[] | select((.name == "test (ubuntu-latest)" or .name == "test (windows-latest)") and .status == "completed" and .conclusion == "success")] | length')"
-
-          if [[ "$passing_checks" != "2" ]]; then
-            echo "::error::Both Ubuntu and Windows CI checks must pass on this exact release commit. Found $passing_checks successful platform checks."
-            exit 1
-          fi
-
-          echo "Release preflight passed for commit $GITHUB_SHA."
+          echo "Release preflight passed for $GITHUB_SHA."
 
       - name: Create the v1.3.0 tag and GitHub Release
         env:
@@ -71,3 +104,6 @@ jobs:
             --title "ContextVault v1.3.0" \
             --notes-file .github/releases/v1.3.0.md \
             --latest
+
+          gh release view v1.3.0 --repo "$GITHUB_REPOSITORY" \
+            --json url,tagName,targetCommitish,isLatest,publishedAt
