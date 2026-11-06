@@ -11,7 +11,7 @@ All notable ContextVault changes are documented here by release or development s
 - Added API and indexing-pipeline safeguards for the Free file limit, including checks before indexing is accepted and after scanning.
 
 ### Validation coverage
-- Added automated tests for the 1,000-file boundary, preservation of existing index data on rejected oversized indexing, MCP Pro-only access, Live Monitoring entitlement enforcement, and verified Pro access.
+- Added automated tests for the 1,000-file boundary, preservation of the previous completed index when an oversized Free reindex is rejected, MCP Pro-only access, Live Monitoring entitlement enforcement, and verified Pro access.
 - GitHub Actions CI is required to pass on both Ubuntu and Windows for the final release commit before tagging.
 
 ### Manual validation still tracked

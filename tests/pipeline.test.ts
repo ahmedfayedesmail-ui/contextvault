@@ -186,6 +186,53 @@ describe("indexProject stale-file reconciliation", () => {
     expect(generateEmbeddingBatch).not.toHaveBeenCalled();
   });
 
+  it("preserves the previous completed index when Free reindexing exceeds 1,000 eligible files", async () => {
+    const existingPath = path.join(firstProjectRoot, "src", "existing.ts");
+    const existingSource = "export const existingIndex = 'keep';";
+
+    await writeFile(existingPath, existingSource, "utf8");
+    const initialResult = await indexProject(firstProjectRoot);
+
+    expect(initialResult).toEqual({ filesCount: 1, chunksCount: 1 });
+    vi.mocked(generateEmbeddingBatch).mockClear();
+
+    for (let index = 0; index < 1_000; index++) {
+      await writeFile(
+        path.join(firstProjectRoot, "src", "additional-" + index + ".ts"),
+        "export const additional" + index + " = " + index + ";",
+        "utf8"
+      );
+    }
+
+    await expect(indexProject(firstProjectRoot)).rejects.toThrow(
+      "Free plan supports up to 1,000 files. Upgrade to Pro for unlimited indexing."
+    );
+    expect(generateEmbeddingBatch).not.toHaveBeenCalled();
+
+    const retainedFile = database.prepare(`
+      SELECT content
+      FROM files
+      WHERE root_path = ? AND path = ?
+    `).get(
+      path.resolve(firstProjectRoot),
+      path.join("src", "existing.ts")
+    ) as { content: string } | undefined;
+
+    expect(retainedFile?.content).toBe(existingSource);
+
+    const retainedChunkCount = database.prepare(`
+      SELECT COUNT(*) AS total
+      FROM chunks
+      INNER JOIN files ON files.id = chunks.file_id
+      WHERE files.root_path = ? AND files.path = ?
+    `).get(
+      path.resolve(firstProjectRoot),
+      path.join("src", "existing.ts")
+    ) as { total: number | bigint };
+
+    expect(Number(retainedChunkCount.total)).toBe(1);
+  });
+
   it("limits Ollama embedding requests to eight chunks", async () => {
     for (let index = 0; index < 9; index++) {
       await writeFile(
