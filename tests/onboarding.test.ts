@@ -24,11 +24,12 @@ import type { Express } from "express";
 import type { DatabaseSync } from "node:sqlite";
 
 vi.mock("../src/indexer/embedder", () => ({
-  generateEmbedding: vi.fn(async () => {
+  generateEmbedding: vi.fn(async () => [0.1, 0.2, 0.3]),
+  generateEmbeddingBatch: vi.fn(async (texts: string[]) => {
     await new Promise<void>((resolve) => {
       setTimeout(resolve, 20);
     });
-    return [0.1, 0.2, 0.3];
+    return texts.map(() => [0.1, 0.2, 0.3]);
   })
 }));
 
@@ -119,16 +120,18 @@ describe("ContextVault onboarding", () => {
     const insertFile = database.prepare(`
       INSERT INTO files (
         path,
+        root_path,
         content,
         mtime,
         size,
         language
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     insertFile.run(
       "src/one.ts",
+      "/contextvault-onboarding-stats-test",
       "export const one = 1;",
       "2026-11-04T10:00:00.000Z",
       21,
@@ -137,6 +140,7 @@ describe("ContextVault onboarding", () => {
 
     insertFile.run(
       "src/two.ts",
+      "/contextvault-onboarding-stats-test",
       "export const two = 2;",
       "2026-11-04T10:00:00.000Z",
       21,
@@ -220,17 +224,13 @@ describe("ContextVault onboarding", () => {
   });
 
   it("updates database statistics while indexing is still running", async () => {
-    await writeFile(
-      path.join(fixtureDirectory, "first.ts"),
-      "export function first() { return 1; }",
-      "utf8"
-    );
-
-    await writeFile(
-      path.join(fixtureDirectory, "second.ts"),
-      "export function second() { return 2; }",
-      "utf8"
-    );
+    for (let index = 0; index < 18; index++) {
+      await writeFile(
+        path.join(fixtureDirectory, `file-${String(index).padStart(2, "0")}.ts`),
+        `export function function${index}() { return ${index}; }`,
+        "utf8"
+      );
+    }
 
     const startResponse = await request(app)
       .post("/api/index")
@@ -251,9 +251,9 @@ describe("ContextVault onboarding", () => {
 
       if (
         job.status === "running" &&
-        job.totalFiles === 2 &&
-        job.completedFiles === 1 &&
-        statsResponse.body.totalFiles === 1
+        job.totalFiles === 18 &&
+        job.completedFiles === 16 &&
+        statsResponse.body.totalFiles === 16
       ) {
         observedPartialProgress = true;
       }
@@ -270,8 +270,8 @@ describe("ContextVault onboarding", () => {
 
     expect(observedPartialProgress).toBe(true);
     expect(finalJob?.status).toBe("completed");
-    expect(finalJob?.filesCount).toBe(2);
-    expect(finalJob?.chunksCount).toBe(2);
+    expect(finalJob?.filesCount).toBe(18);
+    expect(finalJob?.chunksCount).toBe(18);
   });
 
   it("rejects clearing the index while a background indexing job is active", async () => {
@@ -301,14 +301,16 @@ describe("ContextVault onboarding", () => {
     database.prepare(`
       INSERT INTO files (
         path,
+        root_path,
         content,
         mtime,
         size,
         language
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?)
     `).run(
       "src/temporary.ts",
+      "/contextvault-onboarding-clear-test",
       "temporary indexed content",
       "2026-11-04T10:00:00.000Z",
       25,

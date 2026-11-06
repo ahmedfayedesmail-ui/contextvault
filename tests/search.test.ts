@@ -33,7 +33,8 @@ let searchVectors: (
 let saveIndexedData: (
   files: ProjectFile[],
   chunks: TextChunk[],
-  embeddings: number[][]
+  embeddings: number[][],
+  rootPath?: string
 ) => void;
 
 const originalDatabasePath =
@@ -164,7 +165,8 @@ describe("searchVectors", () => {
     saveIndexedData(
       files,
       chunks,
-      embeddings
+      embeddings,
+      "/contextvault-search-test"
     );
   });
 

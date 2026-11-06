@@ -27,7 +27,7 @@ describe("GET /health", () => {
 
     expect(response.body).toEqual({
       status: "ok",
-      version: "0.1.0"
+      version: "1.2.0"
     });
   });
 });
